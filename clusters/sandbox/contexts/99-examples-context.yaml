@@ -1125,6 +1125,12 @@ spec:
                   lightweight.claim: "true"
                   multivalued: "true"
                   userinfo.token.claim: "true"
+        anonymousDCR:
+          trustedHosts:
+            - "*.{{ .Context.ingress.suffix }}"
+            - "*.svc.cluster.local"    
+          allowedScopes:
+            - "groups"
 
     # Provision the following databases and configure the provider part.
     # -- Sandbox-specific database provisioning for service databases and owners.
