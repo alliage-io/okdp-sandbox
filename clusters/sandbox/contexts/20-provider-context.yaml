@@ -45,6 +45,7 @@ spec:
           tokenUrl: "https://keycloak.{{ .Context.ingress.suffix }}/realms/master/protocol/openid-connect/token"
           userinfoUrl: "https://keycloak.{{ .Context.ingress.suffix }}/realms/master/protocol/openid-connect/userinfo"
           jwksUri: "https://keycloak.{{ .Context.ingress.suffix }}/realms/master/protocol/openid-connect/certs"
+          clientRegistrationUrl: "https://keycloak.{{ .Context.ingress.suffix }}/realms/master/clients-registrations/openid-connect"
 
     # -- Database server provider contract for services that need PostgreSQL-compatible databases.
     defaultDatabaseServer:
