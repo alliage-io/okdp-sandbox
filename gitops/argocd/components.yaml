@@ -1,0 +1,90 @@
+#
+# Copyright 2026 The OKDP Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+# One Application <project>-<instance> per platform/components/<NN>-<i>/instance.yaml.
+# Layer ordering: a RollingSync progressive sync by label okdp.io/layer (= NN), one
+# step per layer (00, 10, 20, 30); a step starts when the previous one is Healthy.
+# Requires progressive syncs to be enabled on the ApplicationSet controller
+# (argocd-cmd-params-cm: applicationsetcontroller.enable.progressive.syncs: "true").
+# Values layers: platform/platform-values.yaml, then values.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: okdp-components
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+        revision: main
+        files:
+          - path: gitops/platform/components/*/instance.yaml
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - {key: okdp.io/layer, operator: In, values: ["00"]}
+        - matchExpressions:
+            - {key: okdp.io/layer, operator: In, values: ["10"]}
+        - matchExpressions:
+            - {key: okdp.io/layer, operator: In, values: ["20"]}
+        - matchExpressions:
+            - {key: okdp.io/layer, operator: In, values: ["30"]}
+  template:
+    metadata:
+      name: '{{ .project }}-{{ .name }}'
+      labels:
+        okdp.io/project: '{{ .project }}'
+        okdp.io/instance: '{{ .project }}-{{ .name }}'
+        okdp.io/layer: '{{ regexFind "^[0-9]+" .path.basename }}'
+      annotations:
+        argocd.argoproj.io/sync-wave: '{{ regexFind "^[0-9]+" .path.basename }}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: okdp
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .project }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 10
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
+  templatePatch: |
+    spec:
+      sources:
+        - repoURL: '{{ .chart | trimPrefix "oci://" | dir }}'
+          chart: '{{ .chart | base }}'
+          targetRevision: '{{ .version }}'
+          helm:
+            releaseName: '{{ .project }}-{{ .name }}'
+            valueFiles:
+              - '$values/{{ .path.path | dir | dir }}/platform-values.yaml'
+              - '$values/{{ .path.path }}/values.yaml'
+        - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+          targetRevision: main
+          ref: values

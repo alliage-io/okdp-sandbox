@@ -1,0 +1,77 @@
+#
+# Copyright 2026 The OKDP Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+# One Application <project>-<instance> per projects/<p>/services/<i>/instance.yaml.
+# Values layers, in order: platform/platform-values.yaml, each connection file listed
+# in instance.yaml "connections", then values.yaml. The layer paths are relative to
+# the matched instance.yaml, so the layout prefix only appears in the generator path.
+# The sources live in templatePatch because valueFiles ranges over "connections".
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: okdp-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+        revision: main
+        files:
+          - path: gitops/projects/*/services/*/instance.yaml
+  template:
+    metadata:
+      name: '{{ .project }}-{{ .name }}'
+      labels:
+        okdp.io/project: '{{ .project }}'
+        okdp.io/instance: '{{ .project }}-{{ .name }}'
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: okdp
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .project }}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 10
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 5m
+  templatePatch: |
+    spec:
+      sources:
+        - repoURL: '{{ .chart | trimPrefix "oci://" | dir }}'
+          chart: '{{ .chart | base }}'
+          targetRevision: '{{ .version }}'
+          helm:
+            releaseName: '{{ .project }}-{{ .name }}'
+            valueFiles:
+              - '$values/{{ .path.path | dir | dir | dir | dir }}/platform/platform-values.yaml'
+            {{- range .connections }}
+              - '$values/{{ $.path.path | dir | dir }}/connections/{{ . }}.yaml'
+            {{- end }}
+              - '$values/{{ .path.path }}/values.yaml'
+        - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+          targetRevision: main
+          ref: values
