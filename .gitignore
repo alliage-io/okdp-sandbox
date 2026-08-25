@@ -56,3 +56,6 @@ local/
 .render/
 .dump/
 .charts/
+
+# gitops e2e work directory (scripts/e2e-kind.sh)
+.e2e/
