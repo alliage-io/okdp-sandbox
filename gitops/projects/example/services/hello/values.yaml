@@ -1,0 +1,16 @@
+# A trivial public chart standing in for an OKDP chart. The ConfigMap echoes the
+# platform and connection layers, so both engines can be compared on the values
+# they actually passed to Helm.
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          repository: ghcr.io/stefanprodan/podinfo
+          tag: 6.15.0
+configMaps:
+  layers:
+    data:
+      platform.json: '{{ toJson .Values.global.okdp }}'
+      connections.json: '{{ toJson .Values.connections }}'
+      message: hello from values.yaml

@@ -1,0 +1,12 @@
+# Example platform component of layer 10 (after 00-podinfo). Echoes the platform layer.
+controllers:
+  main:
+    containers:
+      main:
+        image:
+          repository: ghcr.io/stefanprodan/podinfo
+          tag: 6.15.0
+configMaps:
+  layers:
+    data:
+      platform.json: '{{ toJson .Values.global.okdp }}'

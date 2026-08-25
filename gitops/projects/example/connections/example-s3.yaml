@@ -1,0 +1,9 @@
+connections:
+  example-s3:
+    contract: s3
+    apiUrl: https://s3.example.com
+    bucket: example
+    region: us-east-1
+    pathStyle: true
+    secretRef:
+      name: example-s3-credentials
