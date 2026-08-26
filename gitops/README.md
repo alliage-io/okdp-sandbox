@@ -345,7 +345,17 @@ them is a no-op.
 ## Install with Flux
 
 Prerequisites: Flux (tested with v2.9.5: source-controller, kustomize-controller,
-helm-controller), a Git server holding this repository.
+helm-controller), a Git server holding this repository, and helm-controller started
+with `--feature-gates=DisableChartDigestTracking=true`. Without it, helm-controller
+appends the OCI digest to the chart version (`5.2.1+f32d40ce76b5`), so `.Chart.Version`
+(the `helm.sh/chart` label, the descriptor `version`) differs from Argo CD's:
+
+```sh
+kubectl -n flux-system patch deployment helm-controller --type json \
+  -p '[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--feature-gates=DisableChartDigestTracking=true"}]'
+```
+
+(With `flux bootstrap`, add the same patch to `flux-system/kustomization.yaml`.)
 
 1. Set the Git URL/branch in `flux/sync.yaml` (and the paths `./gitops/...` in
    `flux/sync.yaml` and `flux/platform.yaml` if the layout is not under `gitops/`;
