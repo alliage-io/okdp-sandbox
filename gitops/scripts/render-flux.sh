@@ -23,6 +23,7 @@
 #   projects/<p>/services/<i>/kustomization.yaml  values ConfigMap generator
 #   projects/<p>/kustomization.yaml               services + connection ConfigMaps
 #   platform/components/<NN>-<i>/helmrelease.yaml, kustomization.yaml
+#   platform/kustomization.yaml                   platform values + platform connection ConfigMaps
 #   flux/components.yaml                          one Flux Kustomization per component
 #
 # Usage: render-flux.sh [--root DIR] [--path-prefix PREFIX]
@@ -169,9 +170,10 @@ read_instance() {
   (( errors == before ))
 }
 
-# emit_helmrelease PROJECT NAME CHART VERSION CONNECTION...
+# emit_helmrelease PROJECT NAME CHART VERSION CONN_PREFIX CONNECTION...
+# CONN_PREFIX: "conn-<p>-" for a service, "okdp-platform-conn-" for a component.
 emit_helmrelease() {
-  local p="$1" i="$2" chart="$3" version="$4"; shift 4
+  local p="$1" i="$2" chart="$3" version="$4" cprefix="$5"; shift 5
   local r="$p-$i" c
   cat <<EOF
 $HEADER
@@ -229,7 +231,7 @@ EOF
   for c in "$@"; do
     cat <<EOF
     - kind: ConfigMap
-      name: "conn-$p-$c"
+      name: "$cprefix$c"
       valuesKey: values.yaml
 EOF
   done
@@ -291,6 +293,37 @@ EOF
   fi
 }
 
+# emit_platform_kustomization CONNECTIONS_NEWLINE_LIST
+emit_platform_kustomization() {
+  local connections="$1" c
+  cat <<EOF
+$HEADER
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: okdp-releases
+configMapGenerator:
+  - name: okdp-platform-values
+    files:
+      - values.yaml=platform-values.yaml
+    options:
+      disableNameSuffixHash: true
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
+EOF
+  [[ -n "$connections" ]] || return 0
+  while IFS= read -r c; do
+    cat <<EOF
+  - name: "okdp-platform-conn-$c"
+    files:
+      - values.yaml=connections/$c.yaml
+    options:
+      disableNameSuffixHash: true
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
+EOF
+  done <<<"$connections"
+}
+
 # Lists the names of the sub-directories of DIR, sorted (byte order).
 subdirs() {
   local d
@@ -344,7 +377,7 @@ for p in $(subdirs "$ROOT/projects"); do
     $ok || continue
     claim_release "$p-$i" "$rel"
     claim_configmap "values-$p-$i" "$rel"
-    emit_helmrelease "$p" "$i" "$I_CHART" "$I_VERSION" "${I_CONNECTIONS[@]}" | write "$idir/helmrelease.yaml"
+    emit_helmrelease "$p" "$i" "$I_CHART" "$I_VERSION" "conn-$p-" "${I_CONNECTIONS[@]}" | write "$idir/helmrelease.yaml"
     emit_instance_kustomization "$p" "$i" | write "$idir/kustomization.yaml"
     services+="$i"$'\n'
   done
@@ -352,6 +385,22 @@ for p in $(subdirs "$ROOT/projects"); do
 
   emit_project_kustomization "$p" "$services" "$connections" | write "$pdir/kustomization.yaml"
 done
+
+# ---------------------------------------------------- platform connections
+pconnections=""
+if [[ -d "$ROOT/platform/connections" ]]; then
+  for f in "$ROOT"/platform/connections/*; do
+    [[ -e "$f" ]] || continue
+    c="${f##*/}"
+    if [[ "$c" != *.yaml ]]; then err "platform/connections/$c: connection files end with .yaml"; continue; fi
+    c="${c%.yaml}"
+    [[ "$c" =~ $DNS_RE ]] || { err "platform/connections/$c.yaml: name is not a DNS label"; continue; }
+    claim_configmap "okdp-platform-conn-$c" "platform/connections/$c.yaml"
+    pconnections+="$c"$'\n'
+  done
+fi
+pconnections="$(sort <<<"${pconnections%$'\n'}")"
+emit_platform_kustomization "$pconnections" | write "$ROOT/platform/kustomization.yaml"
 
 # ------------------------------------------------------ platform components
 declare -A LAYER_COMPONENTS=()
@@ -368,11 +417,15 @@ for d in $(subdirs "$ROOT/platform/components"); do
   read_instance "$cdir/instance.yaml" || continue
   rel="platform/components/$d/instance.yaml"
   [[ "$I_NAME" == "$cname" ]] || { err "$rel: name must be '$cname' (the directory name without the layer)"; continue; }
-  (( ${#I_CONNECTIONS[@]} == 0 )) || { err "$rel: platform components take no connections (connections: [])"; continue; }
   [[ -f "$cdir/values.yaml" ]] || { err "platform/components/$d: missing values.yaml (use {} when empty)"; continue; }
+  ok=true
+  for c in "${I_CONNECTIONS[@]}"; do
+    [[ -f "$ROOT/platform/connections/$c.yaml" ]] || { err "$rel: connection file platform/connections/$c.yaml does not exist"; ok=false; }
+  done
+  $ok || continue
   claim_release "$I_PROJECT-$I_NAME" "$rel"
   claim_configmap "values-$I_PROJECT-$I_NAME" "$rel"
-  emit_helmrelease "$I_PROJECT" "$I_NAME" "$I_CHART" "$I_VERSION" | write "$cdir/helmrelease.yaml"
+  emit_helmrelease "$I_PROJECT" "$I_NAME" "$I_CHART" "$I_VERSION" "okdp-platform-conn-" "${I_CONNECTIONS[@]}" | write "$cdir/helmrelease.yaml"
   emit_instance_kustomization "$I_PROJECT" "$I_NAME" | write "$cdir/kustomization.yaml"
   LAYER_COMPONENTS[$layer]+="$d "
 done

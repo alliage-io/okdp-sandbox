@@ -19,7 +19,8 @@ engines.
 platform/
   platform-values.yaml            # {global: {okdp: {...}}}: first values layer of every release
   catalog.yaml                    # console service catalog (read/written by the server)
-  kustomization.yaml              # static: ConfigMap okdp-releases/okdp-platform-values (both engines)
+  connections/<name>.yaml         # {connections: {<name>: {...}}}, external connections for components
+  kustomization.yaml              # generated: platform values + platform connection ConfigMaps (both engines)
   components/<NN>-<name>/         # platform components; NN = layer 00, 10, 20 or 30
     instance.yaml  values.yaml    #   written by hand
     helmrelease.yaml  kustomization.yaml   # generated (Flux)
@@ -75,7 +76,7 @@ Rules (enforced by `render-flux.sh`; the server must enforce the same):
 | `project` | equals the project directory (services); free namespace for components |
 | `chart` | `^oci://[a-z0-9]([-a-z0-9.]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]([-a-z0-9._]*[a-z0-9])?)+$`, last path segment = `service` |
 | `version` | `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][-0-9A-Za-z.]*)?$` (no ranges, no `+build`) |
-| `connections` | a list (use `[]` when empty) of distinct DNS labels; each `projects/<p>/connections/<c>.yaml` exists; always `[]` for platform components |
+| `connections` | a list (use `[]` when empty) of distinct DNS labels; each `projects/<p>/connections/<c>.yaml` exists (for a platform component: `platform/connections/<c>.yaml`) |
 | release `<p>-<i>` | at most 53 characters; unique across projects and components |
 
 Because the objects in `okdp-releases` are named `<p>-<i>`, `conn-<p>-<c>` and
@@ -106,10 +107,16 @@ connections:
 `check.sh` validates the fields against `okdp-lib/contracts/<contract>.schema.json`
 (unknown fields, secret fields present, required non-secret fields missing).
 
+### `platform/connections/<c>.yaml`
+
+Same format as a project connection file; used by platform components only (e.g.
+`keycloak-db`, the database of `20-keycloak`). Its `secretRef` names a Secret of the
+component's target namespace.
+
 ### `platform/components/<NN>-<i>/`
 
-Same files as a service instance, with `connections: []`. `project` is the target
-namespace and the release is still `<project>-<name>`. Layers: `00` CRDs/operators,
+Same files as a service instance. `project` is the target namespace and the release is
+still `<project>-<name>`; `connections` name files of `platform/connections/`. Layers: `00` CRDs/operators,
 `10` infra, `20` identity/storage/db, `30` control plane. A layer starts when every
 component of the previous non-empty layer is ready (Flux `dependsOn` + `wait`, Argo
 RollingSync).
@@ -120,18 +127,22 @@ In this exact order under both engines (later layers win, maps merge deeply, lis
 are replaced, as with `helm -f a -f b`):
 
 1. `platform/platform-values.yaml`
-2. each `projects/<p>/connections/<c>.yaml` in the order of `connections`
-3. `projects/<p>/services/<i>/values.yaml`
+2. each connection file in the order of `connections`: `projects/<p>/connections/<c>.yaml`
+   for a service, `platform/connections/<c>.yaml` for a platform component
+3. the instance's `values.yaml`
 
 | | Flux | Argo CD |
 |---|---|---|
 | layer 1 | ConfigMap `okdp-releases/okdp-platform-values`, key `values.yaml` | `$values/<prefix>/platform/platform-values.yaml` |
-| layer 2 | ConfigMap `okdp-releases/conn-<p>-<c>`, key `values.yaml` | `$values/<prefix>/projects/<p>/connections/<c>.yaml` |
-| layer 3 | ConfigMap `okdp-releases/values-<p>-<i>`, key `values.yaml` | `$values/<prefix>/projects/<p>/services/<i>/values.yaml` |
+| layer 2, service | ConfigMap `okdp-releases/conn-<p>-<c>`, key `values.yaml` | `$values/<prefix>/projects/<p>/connections/<c>.yaml` |
+| layer 2, component | ConfigMap `okdp-releases/okdp-platform-conn-<c>`, key `values.yaml` | `$values/<prefix>/platform/connections/<c>.yaml` |
+| layer 3, service | ConfigMap `okdp-releases/values-<p>-<i>`, key `values.yaml` | `$values/<prefix>/projects/<p>/services/<i>/values.yaml` |
+| layer 3, component | ConfigMap `okdp-releases/values-<p>-<i>`, key `values.yaml` | `$values/<prefix>/platform/components/<NN>-<i>/values.yaml` |
 
-The ConfigMap `okdp-releases/okdp-platform-values` exists under both engines (it comes
-from the engine-neutral `platform/kustomization.yaml`); the control plane server reads
-the platform values from it.
+The ConfigMaps `okdp-releases/okdp-platform-values` and `okdp-platform-conn-<c>` exist
+under both engines (they come from the engine-neutral, generated
+`platform/kustomization.yaml`); the control plane server reads the platform values from
+`okdp-platform-values`.
 
 ## Generated files (Flux): byte-exact format
 
@@ -157,7 +168,8 @@ nothing for an empty list. Nothing else varies.
 
 ### `helmrelease.yaml` (service and component)
 
-For a component, `{{p}}` is its `project` and `connections` is empty.
+For a component, `{{p}}` is its `project` and each connection ConfigMap is named
+`okdp-platform-conn-{{c}}` instead of `conn-{{p}}-{{c}}`.
 
 ```yaml
 # Generated by scripts/render-flux.sh. Do not edit.
@@ -294,6 +306,36 @@ configMapGenerator: []
 
 Note: `services/{{i}}` is not quoted (it is a path, not a value).
 
+### `platform/kustomization.yaml` (platform administrators only)
+
+Not written by the server. `connections` = the files `platform/connections/*.yaml`,
+names without `.yaml`, sorted. Applied by both engines (Flux Kustomization / Argo
+Application `okdp-platform-values`).
+
+```yaml
+# Generated by scripts/render-flux.sh. Do not edit.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: okdp-releases
+configMapGenerator:
+  - name: okdp-platform-values
+    files:
+      - values.yaml=platform-values.yaml
+    options:
+      disableNameSuffixHash: true
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
+{{#each connections as c}}
+  - name: "okdp-platform-conn-{{c}}"
+    files:
+      - values.yaml=connections/{{c}}.yaml
+    options:
+      disableNameSuffixHash: true
+      labels:
+        reconcile.fluxcd.io/watch: Enabled
+{{/each}}
+```
+
 ### `flux/components.yaml` (platform administrators only)
 
 Not written by the server (it never writes platform components). One Kustomization per
@@ -391,7 +433,10 @@ Argo CD then manages `argocd/` itself (Application `okdp`), the platform values
 OCI chart (`repoURL` = chart reference without `oci://` and chart name, `chart` =
 name, `targetRevision` = version) and this repository as `ref: values`;
 `helm.valueFiles` lists the layers in contract order; `releaseName: <r>`; destination
-namespace `<p>` (`CreateNamespace=true`). Deleting an instance directory deletes the
+namespace `<p>` (`CreateNamespace=true`). Both ApplicationSets ignore the `caBundle`
+that cert-manager's cainjector, ingress-nginx's certgen hook, trust-manager or kubauth
+inject after the apply (webhook configurations and CRD conversion webhooks,
+`RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Deleting an instance directory deletes the
 Application and its resources (finalizer). The generated `helmrelease.yaml` and
 `kustomization.yaml` files are ignored by Argo CD.
 
