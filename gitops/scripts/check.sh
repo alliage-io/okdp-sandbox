@@ -26,8 +26,12 @@
 #   4. the kustomizations build (when kustomize is installed);
 #   5. with --helm: every instance renders with `helm template` and its values
 #      layers in contract order, which also validates values.schema.json (network).
+#      --chart-map FROM=TO rewrites the chart reference prefix FROM to TO (e.g. a
+#      local registry holding unpublished charts; --plain-http applies to the
+#      rewritten references only).
 #
-# Usage: check.sh [--root DIR] [--path-prefix PREFIX] [--contracts DIR] [--helm]
+# Usage: check.sh [--root DIR] [--path-prefix PREFIX] [--contracts DIR]
+#                 [--helm [--chart-map FROM=TO]... [--plain-http]]
 # Requires bash >= 4, yq v4, jq; optional: kustomize, helm.
 
 set -euo pipefail
@@ -39,6 +43,8 @@ PREFIX=""
 PREFIX_SET=false
 CONTRACTS=""
 HELM=false
+CHART_MAPS=()
+PLAIN_HTTP=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -46,7 +52,9 @@ while [[ $# -gt 0 ]]; do
     --path-prefix) PREFIX="$2"; PREFIX_SET=true; shift 2 ;;
     --contracts) CONTRACTS="$2"; shift 2 ;;
     --helm) HELM=true; shift ;;
-    -h|--help) sed -n '18,32p' "$0"; exit 0 ;;
+    --chart-map) CHART_MAPS+=("$2"); shift 2 ;;
+    --plain-http) PLAIN_HTTP=(--plain-http); shift ;;
+    -h|--help) sed -n '18,35p' "$0"; exit 0 ;;
     *) echo "check: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -97,40 +105,46 @@ else
   [[ "$bad" == "0" ]] || fail "platform/catalog.yaml: every service needs name, versions and default (strings)"
 fi
 
-step "projects and connections"
+step "connections (platform and projects)"
 if [[ -n "$CONTRACTS" ]]; then
   echo "   contract schemas: $CONTRACTS"
 else
   echo "   contract schemas: not found (pass --contracts DIR); checking the shape only"
 fi
-for pdir in "$ROOT"/projects/*/; do
-  [[ -d "$pdir" ]] || continue
-  pdir="${pdir%/}"; p="${pdir##*/}"
-  for f in "$pdir"/connections/*.yaml; do
-    [[ -f "$f" ]] || continue
-    rel="${f#"$ROOT"/}"; c="${f##*/}"; c="${c%.yaml}"
-    [[ "$(yq '[keys[]] | join(",")' "$f")" == "connections" ]] || { fail "$rel: the only top-level key is connections"; continue; }
-    [[ "$(yq '.connections | [keys[]] | join(",")' "$f")" == "$c" ]] || { fail "$rel: must define exactly connections.$c"; continue; }
-    contract="$(yq ".connections[\"$c\"].contract" "$f")"
-    [[ " $KNOWN_CONTRACTS " == *" $contract "* ]] || { fail "$rel: unknown contract '$contract'"; continue; }
-    [[ "$(yq ".connections[\"$c\"].secretRef.name | tag" "$f")" == "!!str" ]] || fail "$rel: secretRef.name is required"
-    schema="$CONTRACTS/$contract.schema.json"
-    if [[ -n "$CONTRACTS" && -f "$schema" ]]; then
-      fields="$(yq -o=json ".connections[\"$c\"] | del(.contract) | del(.secretRef)" "$f")"
-      # unknown fields, secret fields present, required non-secret fields missing
-      problems="$(jq -rn --argjson v "$fields" --slurpfile s "$schema" '
-        ($s[0].properties // {}) as $props
-        | [ ($v | keys[]) as $k
-            | if ($props | has($k)) | not then "unknown field \($k)"
-              elif $props[$k]["x-okdp-secret"] == true then "secret field \($k) must be in the Secret, not here"
-              else empty end ]
-          + [ ($s[0].required // [])[] as $r
-              | select(($props[$r]["x-okdp-secret"] // false) == false)
-              | select(($v | has($r)) | not) | "missing required field \($r)" ]
-        | .[]')"
-      while IFS= read -r m; do [[ -z "$m" ]] || fail "$rel: $m"; done <<<"$problems"
+# check_connection FILE: one connection file ({connections: {<c>: {...}}}).
+check_connection() {
+  local f="$1" rel c contract schema fields problems m
+  rel="${f#"$ROOT"/}"; c="${f##*/}"; c="${c%.yaml}"
+  [[ "$(yq '[keys[]] | join(",")' "$f")" == "connections" ]] || { fail "$rel: the only top-level key is connections"; return; }
+  [[ "$(yq '.connections | [keys[]] | join(",")' "$f")" == "$c" ]] || { fail "$rel: must define exactly connections.$c"; return; }
+  contract="$(yq ".connections[\"$c\"].contract" "$f")"
+  [[ " $KNOWN_CONTRACTS " == *" $contract "* ]] || { fail "$rel: unknown contract '$contract'"; return; }
+  schema="$CONTRACTS/$contract.schema.json"
+  if [[ -n "$CONTRACTS" && -f "$schema" ]]; then
+    # secretRef only for contracts with secret fields (the others have no Secret).
+    if [[ "$(jq '[.properties[]? | select(.["x-okdp-secret"] == true)] | length' "$schema")" != "0" ]]; then
+      [[ "$(yq ".connections[\"$c\"].secretRef.name | tag" "$f")" == "!!str" ]] || fail "$rel: secretRef.name is required"
     fi
-  done
+    fields="$(yq -o=json ".connections[\"$c\"] | del(.contract) | del(.secretRef)" "$f")"
+    # unknown fields, secret fields present, required non-secret fields missing
+    problems="$(jq -rn --argjson v "$fields" --slurpfile s "$schema" '
+      ($s[0].properties // {}) as $props
+      | [ ($v | keys[]) as $k
+          | if ($props | has($k)) | not then "unknown field \($k)"
+            elif $props[$k]["x-okdp-secret"] == true then "secret field \($k) must be in the Secret, not here"
+            else empty end ]
+        + [ ($s[0].required // [])[] as $r
+            | select(($props[$r]["x-okdp-secret"] // false) == false)
+            | select(($v | has($r)) | not) | "missing required field \($r)" ]
+      | .[]')"
+    while IFS= read -r m; do [[ -z "$m" ]] || fail "$rel: $m"; done <<<"$problems"
+  elif [[ "$contract" == s3 || "$contract" == database-server ]]; then
+    [[ "$(yq ".connections[\"$c\"].secretRef.name | tag" "$f")" == "!!str" ]] || fail "$rel: secretRef.name is required"
+  fi
+}
+
+for f in "$ROOT"/platform/connections/*.yaml "$ROOT"/projects/*/connections/*.yaml; do
+  [[ -f "$f" ]] && check_connection "$f"
 done
 
 # ------------------------------------------------------- 3. generated files
@@ -173,12 +187,17 @@ if $HELM; then
     dir="$(dirname "$inst")"; rel="${dir#"$ROOT"/}"
     name="$(yq '.name' "$inst")"; project="$(yq '.project' "$inst")"
     chart="$(yq '.chart' "$inst")"; version="$(yq '.version' "$inst")"
+    plain=()
+    for m in "${CHART_MAPS[@]}"; do
+      if [[ "$chart" == "${m%%=*}"* ]]; then chart="${m#*=}${chart#"${m%%=*}"}"; plain=("${PLAIN_HTTP[@]}"); fi
+    done
     args=(-f "$ROOT/platform/platform-values.yaml")
+    if [[ "$rel" == platform/components/* ]]; then cdir="$ROOT/platform/connections"; else cdir="$ROOT/projects/$project/connections"; fi
     while IFS= read -r c; do
-      [[ -n "$c" ]] && args+=(-f "$ROOT/projects/$project/connections/$c.yaml")
+      [[ -n "$c" ]] && args+=(-f "$cdir/$c.yaml")
     done < <(yq '.connections[]' "$inst")
     args+=(-f "$dir/values.yaml")
-    if helm template "$project-$name" "$chart" --version "$version" -n "$project" "${args[@]}" \
+    if helm template "$project-$name" "$chart" --version "$version" -n "$project" "${plain[@]}" "${args[@]}" \
          >"$TMP/.helm.out" 2>"$TMP/.helm.log"; then
       echo "   ok $rel ($(grep -c '^kind:' "$TMP/.helm.out") objects)"
     else

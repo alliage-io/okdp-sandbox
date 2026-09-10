@@ -26,9 +26,11 @@
 #      status, Service clusterIP(s)) and engine-specific metadata (labels and
 #      annotations under helm.toolkit.fluxcd.io/, kustomize.toolkit.fluxcd.io/,
 #      argocd.argoproj.io/, meta.helm.sh/, plus kubectl last-applied-configuration,
-#      deployment revision and kustomize config.kubernetes.io/origin) are removed;
-#      the rest must be identical.
-# Also compares ConfigMap okdp-releases/okdp-platform-values.
+#      deployment revision and kustomize config.kubernetes.io/origin) and the
+#      caBundle injected into webhook configurations and CRD conversion webhooks
+#      (the CAs differ per cluster) are removed; the rest must be identical.
+# Also compares ConfigMap okdp-releases/okdp-platform-values and every
+# okdp-releases/okdp-platform-conn-* ConfigMap.
 #
 # Usage: compare-engines.sh FLUX_KUBECONFIG ARGO_KUBECONFIG [<project>/<release> ...]
 #   default: every instance.yaml of this layout.
@@ -37,7 +39,7 @@
 set -euo pipefail
 export LC_ALL=C
 
-[[ $# -ge 2 ]] || { sed -n '18,35p' "$0"; exit 2; }
+[[ $# -ge 2 ]] || { sed -n '18,39p' "$0"; exit 2; }
 FLUX_KC="$1"; ARGO_KC="$2"; shift 2
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -67,6 +69,9 @@ NORMALISE='
   | if .metadata.labels == {} then del(.metadata.labels) else . end
   | if .metadata.annotations == {} then del(.metadata.annotations) else . end
   | if .kind == "Service" then del(.spec.clusterIP, .spec.clusterIPs) else . end
+  | if (.kind == "MutatingWebhookConfiguration" or .kind == "ValidatingWebhookConfiguration")
+    then del(.webhooks[]?.clientConfig.caBundle) else . end
+  | if .kind == "CustomResourceDefinition" then del(.spec.conversion.webhook.clientConfig.caBundle) else . end
 '
 
 # fetch KUBECONFIG KIND.GROUP NAME NAMESPACE OUT
@@ -94,8 +99,12 @@ compare_object() {  # compare_object KIND.GROUP NAME NAMESPACE
   fi
 }
 
-echo "== okdp-releases/okdp-platform-values"
+echo "== okdp-releases/okdp-platform-values and platform connections"
 compare_object configmap okdp-platform-values okdp-releases
+for f in "$ROOT"/platform/connections/*.yaml; do
+  [[ -f "$f" ]] || continue
+  c="${f##*/}"; compare_object configmap "okdp-platform-conn-${c%.yaml}" okdp-releases
+done
 
 for t in "${TARGETS[@]}"; do
   ns="${t%%/*}"; r="${t#*/}"
