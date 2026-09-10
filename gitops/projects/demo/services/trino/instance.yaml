@@ -1,0 +1,7 @@
+name: trino
+project: demo
+service: trino
+chart: oci://quay.io/okdp/platform-charts/trino
+version: 480.0.0-1.0.1
+connections:
+  - demo-storage

@@ -1,0 +1,8 @@
+name: airflow
+project: demo
+service: airflow
+chart: oci://quay.io/okdp/platform-charts/airflow
+version: 3.2.1-1.0.1
+connections:
+  - demo-db-airflow
+  - demo-storage

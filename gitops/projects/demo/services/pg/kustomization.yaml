@@ -5,7 +5,7 @@ namespace: okdp-releases
 resources:
   - helmrelease.yaml
 configMapGenerator:
-  - name: "values-example-hello"
+  - name: "values-demo-pg"
     files:
       - values.yaml
     options:

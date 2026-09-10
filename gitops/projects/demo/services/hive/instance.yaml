@@ -1,0 +1,8 @@
+name: hive
+project: demo
+service: hive-metastore
+chart: oci://quay.io/okdp/platform-charts/hive-metastore
+version: 4.0.1-1.0.0
+connections:
+  - demo-db-hive
+  - demo-storage

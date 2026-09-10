@@ -1,0 +1,6 @@
+name: vault
+project: vault
+service: vault
+chart: oci://quay.io/okdp/sandbox-charts/vault
+version: 0.34.1-1.0.0
+connections: []
