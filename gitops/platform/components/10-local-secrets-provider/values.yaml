@@ -1,0 +1,53 @@
+# Platform component 10-local-secrets-provider: the OKDP chart local-secrets-provider
+# (sandbox-dependencies), the sandbox's stand-in for a secret manager. Every Secret is
+# replicated to every namespace (kubernetes-replicator of 00-tools).
+secrets:
+  # Owner of the keycloak database (20-cnpg-postgresql) and secretRef of the platform
+  # connection keycloak-db (20-keycloak).
+  - name: creds-keycloak-db
+    data:
+      username: keycloak
+      password: keycloak123
+  # The platformAdmin identity of the object store (20-storage) and the secretRef of
+  # the projects' s3 connection files.
+  - name: creds-seaweedfs-s3
+    data:
+      accessKey: snu8yoP6QAlY0ne4
+      secretKey: PNzBcmeLNEdR0oviwm04NQAicOrDH1Km
+  # Write access of the console (30-okdp-control-plane-server) to the deployments
+  # repository served by 10-gitea (same account as the Gitea admin).
+  - name: okdp-gitops-credentials
+    data:
+      username: okdp
+      password: okdp-sandbox-Passw0rd
+  # S3 identities of the demo project's services: the grants of 20-storage.
+  - name: creds-hive-metastore-s3
+    data:
+      accessKey: hive-metastore
+      secretKey: rdwFp4MRhDnGGsSJpNQ0CiMIFz56VseWIPMWgKBe
+  - name: creds-trino-s3
+    data:
+      accessKey: trino
+      secretKey: IthuzMjA3fWjGNdHCxE0KaJhx2zY8pxZmmkEqxHg
+      S3_ACCESS_KEY: trino
+      S3_SECRET_ACCESS: IthuzMjA3fWjGNdHCxE0KaJhx2zY8pxZmmkEqxHg
+  - name: creds-jupyterhub-s3
+    data:
+      accessKey: jupyterhub
+      secretKey: 4xABAzx5eHAfjf6SSbwFegO3eqrcz3yePEZH2oQz
+      S3_ACCESS_KEY: jupyterhub
+      S3_SECRET_KEY: 4xABAzx5eHAfjf6SSbwFegO3eqrcz3yePEZH2oQz
+  - name: creds-spark-history-s3
+    data:
+      accessKey: spark-history
+      secretKey: 9xWCGP9DWn4r9ikF4VhhOfBzbJsO0FpgW7DmIjQh
+  - name: creds-polaris-s3
+    data:
+      accessKey: polaris
+      secretKey: PNzBcmeLNEdR0oviwm04NQAicOrDH1Km
+  - name: creds-examples-s3
+    data:
+      accessKey: okdp-examples
+      secretKey: DiP4JtyptKQIVyEufZu2l74WIWYH5fK1tz6GrXgH
+      S3_ACCESS_KEY: okdp-examples
+      S3_SECRET_KEY: DiP4JtyptKQIVyEufZu2l74WIWYH5fK1tz6GrXgH

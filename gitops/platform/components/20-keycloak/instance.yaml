@@ -1,0 +1,7 @@
+name: keycloak
+project: keycloak
+service: keycloak
+chart: oci://quay.io/okdp/sandbox-charts/keycloak
+version: 7.3.2-1.0.1
+connections:
+  - keycloak-db

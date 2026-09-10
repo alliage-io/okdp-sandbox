@@ -1,0 +1,6 @@
+name: gitea
+project: gitea
+service: gitea
+chart: oci://docker.gitea.com/charts/gitea
+version: 12.7.0
+connections: []

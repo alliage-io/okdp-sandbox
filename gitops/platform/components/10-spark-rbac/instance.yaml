@@ -1,0 +1,6 @@
+name: spark-rbac
+project: default
+service: spark-rbac
+chart: oci://quay.io/okdp/platform-charts/spark-rbac
+version: 1.0.1-1.0.1
+connections: []

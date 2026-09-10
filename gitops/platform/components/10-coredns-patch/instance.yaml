@@ -1,0 +1,6 @@
+name: coredns-patch
+project: kube-system
+service: coredns-patch
+chart: oci://quay.io/okdp/sandbox-charts/coredns-patch
+version: 1.0.0-1.0.1
+connections: []

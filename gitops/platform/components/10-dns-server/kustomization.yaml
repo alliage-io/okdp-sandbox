@@ -5,7 +5,7 @@ namespace: okdp-releases
 resources:
   - helmrelease.yaml
 configMapGenerator:
-  - name: "values-okdp-example-echo"
+  - name: "values-dns-server-dns-server"
     files:
       - values.yaml
     options:

@@ -10,3 +10,10 @@ configMapGenerator:
       disableNameSuffixHash: true
       labels:
         reconcile.fluxcd.io/watch: Enabled
+  - name: "okdp-platform-conn-keycloak-db"
+    files:
+      - values.yaml=connections/keycloak-db.yaml
+    options:
+      disableNameSuffixHash: true
+      labels:
+        reconcile.fluxcd.io/watch: Enabled

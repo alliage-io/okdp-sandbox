@@ -1,0 +1,6 @@
+name: ingress-nginx
+project: ingress-nginx
+service: ingress-nginx
+chart: oci://quay.io/okdp/sandbox-charts/ingress-nginx
+version: 4.15.1-1.0.1
+connections: []

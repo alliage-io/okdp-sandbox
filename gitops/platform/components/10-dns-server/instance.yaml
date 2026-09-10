@@ -1,0 +1,6 @@
+name: dns-server
+project: dns-server
+service: dns-server
+chart: oci://quay.io/okdp/sandbox-charts/dns-server
+version: 1.47.1-1.0.1
+connections: []
