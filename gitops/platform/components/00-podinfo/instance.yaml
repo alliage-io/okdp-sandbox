@@ -1,6 +1,0 @@
-name: podinfo
-project: okdp-example
-service: podinfo
-chart: oci://ghcr.io/stefanprodan/charts/podinfo
-version: 6.15.0
-connections: []

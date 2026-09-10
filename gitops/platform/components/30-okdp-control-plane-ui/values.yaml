@@ -1,0 +1,4 @@
+# Platform component 30-okdp-control-plane-ui: the OKDP chart okdp-control-plane-ui
+# (platform-packages), https://okdp-ui.okdp.sandbox. Issuer and client come from the
+# platform values; /api goes to okdp-system-okdp-control-plane-server.
+{}

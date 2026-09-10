@@ -3,16 +3,16 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: "okdp-example-podinfo"
+  name: "gitea-gitea"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "okdp-example"
-    okdp.io/instance: "okdp-example-podinfo"
+    okdp.io/project: "gitea"
+    okdp.io/instance: "gitea-gitea"
 spec:
   interval: 10m
-  url: "oci://ghcr.io/stefanprodan/charts/podinfo"
+  url: "oci://docker.gitea.com/charts/gitea"
   ref:
-    tag: "6.15.0"
+    tag: "12.7.0"
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
@@ -20,19 +20,19 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: "okdp-example-podinfo"
+  name: "gitea-gitea"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "okdp-example"
-    okdp.io/instance: "okdp-example-podinfo"
+    okdp.io/project: "gitea"
+    okdp.io/instance: "gitea-gitea"
 spec:
   interval: 10m
-  releaseName: "okdp-example-podinfo"
-  targetNamespace: "okdp-example"
-  storageNamespace: "okdp-example"
+  releaseName: "gitea-gitea"
+  targetNamespace: "gitea"
+  storageNamespace: "gitea"
   chartRef:
     kind: OCIRepository
-    name: "okdp-example-podinfo"
+    name: "gitea-gitea"
   timeout: 15m
   install:
     createNamespace: true
@@ -50,5 +50,5 @@ spec:
       name: okdp-platform-values
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: "values-okdp-example-podinfo"
+      name: "values-gitea-gitea"
       valuesKey: values.yaml

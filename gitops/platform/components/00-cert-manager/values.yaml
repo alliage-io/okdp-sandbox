@@ -1,0 +1,5 @@
+# Platform component 00-cert-manager: the OKDP chart cert-manager (packages/system/cert-manager).
+# cert-manager and the CRDs (its own and trust-manager's Bundle). The trust and issuers
+# modules of the KuboCD package are the components 10-cert-issuers and 20-trust-bundle.
+certManager:
+  enabled: true

@@ -5,7 +5,7 @@ namespace: okdp-releases
 resources:
   - helmrelease.yaml
 configMapGenerator:
-  - name: "values-okdp-example-podinfo"
+  - name: "values-kube-system-coredns-patch"
     files:
       - values.yaml
     options:

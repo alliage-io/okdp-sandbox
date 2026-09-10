@@ -1,0 +1,6 @@
+name: tools
+project: kube-tools
+service: tools
+chart: oci://quay.io/okdp/sandbox-charts/tools
+version: 1.0.0-1.0.0
+connections: []
