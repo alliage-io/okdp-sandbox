@@ -1,0 +1,6 @@
+name: pg
+project: demo
+service: cnpg-postgresql
+chart: oci://quay.io/okdp/sandbox-charts/cnpg-postgresql
+version: 18.3.0-1.0.1
+connections: []

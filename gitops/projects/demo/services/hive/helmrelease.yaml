@@ -3,16 +3,16 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: "example-hello"
+  name: "demo-hive"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "example"
-    okdp.io/instance: "example-hello"
+    okdp.io/project: "demo"
+    okdp.io/instance: "demo-hive"
 spec:
   interval: 10m
-  url: "oci://ghcr.io/bjw-s-labs/helm/app-template"
+  url: "oci://quay.io/okdp/platform-charts/hive-metastore"
   ref:
-    tag: "5.2.1"
+    tag: "4.0.1-1.0.1"
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
@@ -20,19 +20,19 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: "example-hello"
+  name: "demo-hive"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "example"
-    okdp.io/instance: "example-hello"
+    okdp.io/project: "demo"
+    okdp.io/instance: "demo-hive"
 spec:
   interval: 10m
-  releaseName: "example-hello"
-  targetNamespace: "example"
-  storageNamespace: "example"
+  releaseName: "demo-hive"
+  targetNamespace: "demo"
+  storageNamespace: "demo"
   chartRef:
     kind: OCIRepository
-    name: "example-hello"
+    name: "demo-hive"
   timeout: 15m
   install:
     createNamespace: true
@@ -50,8 +50,11 @@ spec:
       name: okdp-platform-values
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: "conn-example-example-s3"
+      name: "conn-demo-demo-db-hive"
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: "values-example-hello"
+      name: "conn-demo-demo-storage"
+      valuesKey: values.yaml
+    - kind: ConfigMap
+      name: "values-demo-hive"
       valuesKey: values.yaml

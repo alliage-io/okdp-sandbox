@@ -1,0 +1,6 @@
+name: kubauth
+project: kubauth
+service: kubauth
+chart: oci://quay.io/okdp/sandbox-charts/kubauth
+version: 0.3.0-snapshot-1.0.1
+connections: []

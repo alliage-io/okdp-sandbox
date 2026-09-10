@@ -1,0 +1,7 @@
+name: spark-history
+project: demo
+service: spark-history-server
+chart: oci://quay.io/okdp/platform-charts/spark-history-server
+version: 3.5.1-1.0.1
+connections:
+  - demo-storage

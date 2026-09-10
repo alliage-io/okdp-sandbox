@@ -1,0 +1,8 @@
+name: polaris
+project: demo
+service: polaris
+chart: oci://quay.io/okdp/platform-charts/polaris
+version: 1.3.0-incubating-2.0.0
+connections:
+  - demo-db-polaris
+  - demo-storage

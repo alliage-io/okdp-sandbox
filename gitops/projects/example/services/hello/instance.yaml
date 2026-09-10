@@ -1,7 +1,0 @@
-name: hello
-project: example
-service: app-template
-chart: oci://ghcr.io/bjw-s-labs/helm/app-template
-version: 5.2.1
-connections:
-  - example-s3
