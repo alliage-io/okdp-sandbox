@@ -14,192 +14,88 @@
 #  limitations under the License.
 #
 
-# End-to-end install validation for the sandbox deployment.
+# End-to-end install validation of the deployments repository (gitops/), with both
+# GitOps engines, as the README installs it:
 #
-# Spins up a throwaway Kind cluster, installs Flux and the KuboCD controller,
-# then applies the contexts and releases from clusters/sandbox/ exactly as the
-# README instructs and waits until every KuboCD Release reaches READY.
+#   1. kind cluster nokubocd-flux: Gitea bootstrapped from the 10-gitea component,
+#      this commit pushed to it, Flux, gitops/flux/sync.yaml, wait for every
+#      HelmRelease (gitops/scripts/e2e-kind.sh up flux);
+#   2. kind cluster nokubocd-argocd: the same with Argo CD and gitops/argocd/;
+#   3. gitops/scripts/compare-engines.sh: the live objects of every release must be
+#      identical under both engines.
 #
-# Unlike the package CI in OKDP/platform-packages and OKDP/sandbox-dependencies,
-# this workflow builds nothing: it deploys the already-published packages straight from
-# the manifests, so it validates the deployment layer, not the packages themselves.
-#
-# Packages come from two registries, matching repository ownership:
-# - quay.io/okdp/sandbox-dependencies/<pkg>: third-party and bootstrap dependencies the sandbox needs but OKDP does not own.
-# - quay.io/okdp/platform-packages/<pkg>: OKDP core services and control plane.
-# Each release pins its own full path and tag; clusters/sandbox/releases/ is the
-# source of truth for which package comes from where.
+# The platform components only (E2E_SKIP_PROJECTS=1): two clusters with the demo
+# project do not fit a hosted runner (about 32 GB each). The charts are the
+# published ones (oci://quay.io/okdp/...): this workflow validates the deployment
+# layer, not the charts, which their own repositories test.
 
-name: Deploy validation (sandbox e2e)
+name: Deploy validation (sandbox e2e, Flux and Argo CD)
 
 on:
   pull_request:
     paths:
-      - "clusters/**"
+      - "gitops/**"
       - ".github/workflows/deploy-validation.yml"
   push:
     branches: [main]
     paths:
-      - "clusters/**"
+      - "gitops/**"
   workflow_dispatch:
 
 defaults:
   run:
     shell: bash
 
+env:
+  E2E_DIR: ${{ github.workspace }}/.e2e
+  E2E_SKIP_PROJECTS: "1"
+  E2E_TIMEOUT: "2400"
+  FLUX_VERSION: v2.9.5
+  ARGOCD_VERSION: v3.4.2
+
 jobs:
   deploy-validation:
-    # A larger runner gives the full platform room to schedule; on a small runner
-    # the capacity escape-hatch below turns "insufficient cpu/memory" into a pass.
     runs-on: ubuntu-latest
     steps:
-
       - name: Checkout repo ⚡️
         uses: actions/checkout@v4
 
       - name: Free up disk space 📦
         uses: okdp/gh-workflows/.github/actions/free-disk-space@v1
 
-      - name: Set up Kind cluster 📦
-        uses: okdp/gh-workflows/.github/actions/setup-kind@v1
-
-      - name: Setup Flux CLI 🛠️
-        uses: fluxcd/flux2/action@main
-        with:
-          version: "2.7.5"
-
-      - name: Deploy Flux (basic mode) 🚀
-        run: flux install
-
-      - name: Wait until Flux controllers are ready ⌛
+      - name: Set up kind, helm and the Flux CLI 🛠️
         run: |
-          kubectl wait --for=condition=ready pod -l app=source-controller -n flux-system --timeout=300s
+          curl -sSfLo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
+          chmod +x /usr/local/bin/kind
+          curl -sSfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          curl -sSfL https://fluxcd.io/install.sh | bash -s -- --version "${FLUX_VERSION#v}"
+          kind version; helm version; flux version --client
 
-      - name: Verify Flux installation ✅
+      - name: Deploy with Flux 🚀
+        run: gitops/scripts/e2e-kind.sh up flux
+
+      - name: Deploy with Argo CD 🚀
+        run: gitops/scripts/e2e-kind.sh up argocd
+
+      - name: Compare the two engines ✅
         run: |
-          flux version
-          kubectl -n flux-system get pods
+          gitops/scripts/compare-engines.sh "$E2E_DIR/flux.kubeconfig" "$E2E_DIR/argocd.kubeconfig" \
+            $(cd gitops && find platform/components -name instance.yaml | sort \
+              | xargs -n1 yq '.project + "/" + .project + "-" + .name' \
+              | grep -v '^okdp-system/okdp-system-okdp-control-plane-server$')
+          # The control plane server differs on purpose: gitops.engine (GITOPS_ENGINE,
+          # engine RBAC) follows the engine.
 
-      - name: Bootstrap the KuboCD controller 🛠️
-        run: kubectl apply -f clusters/sandbox/flux/kubocd.yaml
-
-      - name: Wait until the KuboCD controller is ready ⌛
+      - name: Diagnostics 🔎
+        if: failure()
         run: |
-          # HelmRelease "Ready" implies the controller is rolled out and its CRDs
-          # (Context, Release) are registered, which the next steps need.
-          kubectl wait --for=condition=Ready helmrelease/kubocd-controller \
-            -n flux-system --timeout=600s
-          kubectl -n kubocd get pods
-
-      - name: Apply the connection contracts 🚀
-        run: |
-          # Contracts come first: a Connection names one through a required
-          # field, and the contract validates the values it carries.
-          kubectl apply -f clusters/sandbox/contracts/
-
-      - name: Apply the platform context 🚀
-        run: |
-          kubectl apply --server-side -f clusters/sandbox/contexts/
-
-      - name: Apply the platform releases 🚀
-        run: |
-          kubectl apply -f clusters/sandbox/releases/
-
-      - name: Wait for all releases to become READY ✅
-        run: |
-          echo "**************************************** Storage Classes ****************************************"
-          kubectl get sc
-          kubectl get events -A -w >/tmp/kubectl-events.log 2>&1 &
-          EVENTS_PID=$!
-          trap 'kill $EVENTS_PID 2>/dev/null || true' EXIT
-
-          # Poll release phase explicitly; more stable than kubectl wait for this CRD.
-          timeout_secs=1200
-          interval_secs=15
-          elapsed=0
-          ready=0
-
-          while [ "$elapsed" -lt "$timeout_secs" ]; do
-            echo "Wait until all KuboCD releases are ready ..."
-            echo "************************************** Releases status **************************************"
-            kubectl get release -A || true
-            echo "**************************************** Pods status ****************************************"
-            kubectl get po -A || true
-            echo "**************************************** PVC status ****************************************"
-            kubectl get pvc -A || true
-            echo "**************************************** Pending Pods ****************************************"
-            kubectl get pods -A --field-selector=status.phase=Pending \
-              -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name --no-headers \
-              | xargs -r -n2 sh -c 'echo "Pending Pod: $0/$1 ==="; kubectl describe pod -n "$0" "$1"; echo'
-
-            echo "**************************************** Unhealthy Pods ****************************************"
-            kubectl get pods -A --no-headers \
-              | awk '$4 ~ /CrashLoopBackOff|Error|ImagePullBackOff|CreateContainerConfigError|CreateContainerError/ {print $1, $2}' \
-              | while read -r ns pod; do
-                  [ -n "$ns" ] || continue
-                  [ -n "$pod" ] || continue
-                  echo "Unhealthy Pod: $ns/$pod ==="
-                  kubectl describe pod -n "$ns" "$pod" || true
-                  containers="$(
-                    kubectl get pod -n "$ns" "$pod" -o jsonpath='{range .spec.initContainers[*]}{.name}{"\n"}{end}{range .spec.containers[*]}{.name}{"\n"}{end}' 2>/dev/null || true
-                  )"
-                  for c in $containers; do
-                    echo "--- logs current: $ns/$pod container=$c ---"
-                    kubectl logs -n "$ns" "$pod" -c "$c" --tail=200 || true
-                    echo "--- logs previous: $ns/$pod container=$c ---"
-                    kubectl logs -n "$ns" "$pod" -c "$c" --previous --tail=200 || true
-                  done
-                  echo
-                done
-
-            not_ready="$(kubectl get release -A -o jsonpath='{range .items[?(@.status.phase!="READY")]}{.metadata.namespace}/{.metadata.name}{"\n"}{end}' 2>/dev/null || true)"
-
-            if [ -z "$not_ready" ]; then
-              echo "All releases are READY."
-              ready=1
-              break
-            fi
-
-            echo "Releases not ready yet:"
-            echo "$not_ready"
-
-            scheduling_errors="$(
-              kubectl get events -A --field-selector reason=FailedScheduling --no-headers 2>/dev/null \
-                | grep -E 'Insufficient (cpu|memory)' || true
-            )"
-
-            if [ -n "$scheduling_errors" ]; then
-              echo "Detected insufficient CPU or memory in Kubernetes scheduling events."
-              echo "Treating this as a CI capacity limitation and exiting successfully."
-              echo "$scheduling_errors"
-              exit 0
-            fi
-
-            sleep "$interval_secs"
-            elapsed=$((elapsed + interval_secs))
+          for engine in flux argocd; do
+            kc="$E2E_DIR/$engine.kubeconfig"
+            [[ -f "$kc" ]] || continue
+            echo "======== $engine"
+            kubectl --kubeconfig "$kc" get pods -A || true
+            kubectl --kubeconfig "$kc" get helmreleases.helm.toolkit.fluxcd.io -A 2>/dev/null || true
+            kubectl --kubeconfig "$kc" get kustomizations.kustomize.toolkit.fluxcd.io -A 2>/dev/null || true
+            kubectl --kubeconfig "$kc" get applications.argoproj.io -A 2>/dev/null || true
+            kubectl --kubeconfig "$kc" get events -A --sort-by=.lastTimestamp | tail -n 100 || true
           done
-
-          if [ "$ready" -eq 1 ]; then
-            exit 0
-          fi
-
-          echo "Timed out waiting for READY releases after ${timeout_secs}s"
-          kubectl get release -A
-          kubectl get helmrelease -A || true
-          kubectl get jobs -A || true
-          echo "Last events log lines:"
-          tail -n 200 /tmp/kubectl-events.log || true
-
-          scheduling_errors="$(
-            kubectl get events -A --field-selector reason=FailedScheduling --no-headers 2>/dev/null \
-              | grep -E 'Insufficient (cpu|memory)' || true
-          )"
-
-          if [ -n "$scheduling_errors" ]; then
-            echo "Detected insufficient CPU or memory in Kubernetes scheduling events."
-            echo "Treating this as a CI capacity limitation and exiting successfully."
-            echo "$scheduling_errors"
-            exit 0
-          fi
-
-          exit 1
