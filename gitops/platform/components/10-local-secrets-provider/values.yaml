@@ -5,6 +5,7 @@ secrets:
   # Owner of the keycloak database (20-cnpg-postgresql) and secretRef of the platform
   # connection keycloak-db (20-keycloak).
   - name: creds-keycloak-db
+    labels: {cnpg.io/reload: "true"}
     data:
       username: keycloak
       password: keycloak123
@@ -51,3 +52,28 @@ secrets:
       secretKey: DiP4JtyptKQIVyEufZu2l74WIWYH5fK1tz6GrXgH
       S3_ACCESS_KEY: okdp-examples
       S3_SECRET_KEY: DiP4JtyptKQIVyEufZu2l74WIWYH5fK1tz6GrXgH
+  # Owners of the demo project's databases (projects/demo/services/pg) and secretRef
+  # of its connections/demo-db-*.yaml. Here rather than in the project's secrets:
+  # CloudNativePG creates a managed role without a password when its passwordSecret
+  # does not exist yet, and does not come back to it when the Secret appears (unless
+  # the Secret carries the label cnpg.io/reload), so they must exist before the
+  # cluster, and carry that label. Found on the kind e2e run (docs/no-kubocd-e2e.md).
+  - name: creds-hive-metastore-db
+    labels: {cnpg.io/reload: "true"}
+    data: {username: hms, password: hms123}
+  - name: creds-superset-db
+    labels: {cnpg.io/reload: "true"}
+    data: {username: superset, password: superset123}
+  - name: creds-superset-examples-db
+    labels: {cnpg.io/reload: "true"}
+    data: {username: examples, password: examples123}
+  - name: creds-polaris-db
+    labels: {cnpg.io/reload: "true"}
+    data: {username: polaris, password: polaris123}
+  # Airflow: the owner role and the metadata connection string (metadataSecret).
+  - name: creds-airflow-db
+    labels: {cnpg.io/reload: "true"}
+    data:
+      username: airflow
+      password: airflow123
+      connection: postgresql+psycopg2://airflow:airflow123@demo-pg-rw.demo.svc.cluster.local:5432/airflow?sslmode=disable
