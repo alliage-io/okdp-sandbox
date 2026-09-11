@@ -56,6 +56,9 @@ spec:
         okdp.io/layer: '{{ regexFind "^[0-9]+" .path.basename }}'
       annotations:
         argocd.argoproj.io/sync-wave: '{{ regexFind "^[0-9]+" .path.basename }}'
+        # Diff as the API server would apply it (defaults and mutating webhooks such as
+        # CloudNativePG's or trust-manager's), consistent with ServerSideApply=true.
+        argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
