@@ -464,7 +464,10 @@ namespace `<p>` (`CreateNamespace=true`). Both ApplicationSets ignore the `caBun
 that cert-manager's cainjector, ingress-nginx's certgen hook or trust-manager
 inject after the apply (webhook configurations and CRD conversion webhooks,
 `RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Applications
-sync with `ServerSideApply=true` (the CloudNativePG and External Secrets CRDs exceed
+sync with `ServerSideApply=true` and diff server-side
+(`argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true`:
+the objects defaulted by the API server or a mutating webhook, such as CloudNativePG
+Clusters or trust-manager Bundles, stay in sync) (the CloudNativePG and External Secrets CRDs exceed
 the client-side apply annotation limit; Flux's helm-controller applies server-side as
 well) and retry without limit (backoff up to 5 minutes): a service may wait for the
 platform on a first install. Deleting an instance directory deletes the

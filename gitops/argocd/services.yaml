@@ -39,6 +39,10 @@ spec:
       labels:
         okdp.io/project: '{{ .project }}'
         okdp.io/instance: '{{ .project }}-{{ .name }}'
+      annotations:
+        # Diff as the API server would apply it (defaults and mutating webhooks such as
+        # CloudNativePG's or trust-manager's), consistent with ServerSideApply=true.
+        argocd.argoproj.io/compare-options: ServerSideDiff=true,IncludeMutationWebhook=true
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
