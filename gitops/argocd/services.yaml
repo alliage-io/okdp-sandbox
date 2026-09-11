@@ -65,8 +65,12 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - RespectIgnoreDifferences=true
+          # Large CRDs (CloudNativePG, External Secrets) exceed the client-side apply
+          # annotation limit; Flux's helm-controller applies server-side too.
+          - ServerSideApply=true
         retry:
-          limit: 10
+          # Unlimited: a first install may wait for the platform (webhooks, CA bundle).
+          limit: -1
           backoff:
             duration: 10s
             factor: 2

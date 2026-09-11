@@ -35,8 +35,8 @@ projects/<project>/
   kustomization.yaml              # generated (Flux): services + connection ConfigMaps
 flux/                             # Flux entry point
   sync.yaml                       #   GitRepository okdp-gitops + Kustomization okdp (bootstrap)
-  platform.yaml                   #   Namespace okdp-releases, Kustomizations okdp-platform-values, okdp-projects
-  components.yaml                 #   generated: one Kustomization per platform component
+  platform.yaml                   #   Namespace okdp-releases, Kustomization okdp-platform-values
+  components.yaml                 #   generated: one Kustomization per platform component, okdp-projects
   kustomization.yaml
 argocd/                           # Argo CD entry point
   project.yaml                    #   AppProject okdp
@@ -367,7 +367,34 @@ spec:
     - name: {{dependency}}
 ```
 
-With no component at all, the file is only the header line.
+It ends with the Kustomization of the project services, which starts once the platform
+is ready: its `dependsOn` lists every component of the highest non-empty layer
+(`okdp-platform-values` when there is no component). `{{root}}` is `./<prefix>`
+(`.` at the repository root).
+
+```yaml
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: okdp-projects
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: okdp-gitops
+  path: {{root}}/projects
+  prune: true
+  dependsOn:
+    - name: {{dependency}}
+```
+
+No `wait` on it: one broken instance must not block the others; the control plane
+server reads each HelmRelease's conditions. Without the `dependsOn`, a service
+installed before the ingress admission webhook or the CA bundle exists fails its
+install and its retry, then stalls (`MissingRollbackTarget`).
 
 ### What the server writes, per action
 
@@ -436,7 +463,11 @@ name, `targetRevision` = version) and this repository as `ref: values`;
 namespace `<p>` (`CreateNamespace=true`). Both ApplicationSets ignore the `caBundle`
 that cert-manager's cainjector, ingress-nginx's certgen hook or trust-manager
 inject after the apply (webhook configurations and CRD conversion webhooks,
-`RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Deleting an instance directory deletes the
+`RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Applications
+sync with `ServerSideApply=true` (the CloudNativePG and External Secrets CRDs exceed
+the client-side apply annotation limit; Flux's helm-controller applies server-side as
+well) and retry without limit (backoff up to 5 minutes): a service may wait for the
+platform on a first install. Deleting an instance directory deletes the
 Application and its resources (finalizer). The generated `helmrelease.yaml` and
 `kustomization.yaml` files are ignored by Argo CD.
 

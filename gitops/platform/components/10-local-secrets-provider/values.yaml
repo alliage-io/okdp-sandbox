@@ -15,7 +15,7 @@ secrets:
       accessKey: snu8yoP6QAlY0ne4
       secretKey: PNzBcmeLNEdR0oviwm04NQAicOrDH1Km
   # Write access of the console (30-okdp-control-plane-server) to the deployments
-  # repository served by 10-gitea (same account as the Gitea admin).
+  # repository served by 20-gitea (same account as the Gitea admin).
   - name: okdp-gitops-credentials
     data:
       username: okdp

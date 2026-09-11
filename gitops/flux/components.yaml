@@ -159,28 +159,6 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: okdp-component-10-gitea
-  namespace: flux-system
-spec:
-  interval: 10m
-  retryInterval: 1m
-  timeout: 10m
-  sourceRef:
-    kind: GitRepository
-    name: okdp-gitops
-  path: ./gitops/platform/components/10-gitea
-  prune: true
-  wait: true
-  dependsOn:
-    - name: okdp-component-00-cert-manager
-    - name: okdp-component-00-cloudnative-pg
-    - name: okdp-component-00-external-secrets
-    - name: okdp-component-00-spark-operator
-    - name: okdp-component-00-tools
----
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
   name: okdp-component-10-ingress-nginx
   namespace: flux-system
 spec:
@@ -263,7 +241,29 @@ spec:
     - name: okdp-component-10-cert-issuers
     - name: okdp-component-10-coredns-patch
     - name: okdp-component-10-dns-server
-    - name: okdp-component-10-gitea
+    - name: okdp-component-10-ingress-nginx
+    - name: okdp-component-10-local-secrets-provider
+    - name: okdp-component-10-spark-rbac
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: okdp-component-20-gitea
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: okdp-gitops
+  path: ./gitops/platform/components/20-gitea
+  prune: true
+  wait: true
+  dependsOn:
+    - name: okdp-component-10-cert-issuers
+    - name: okdp-component-10-coredns-patch
+    - name: okdp-component-10-dns-server
     - name: okdp-component-10-ingress-nginx
     - name: okdp-component-10-local-secrets-provider
     - name: okdp-component-10-spark-rbac
@@ -287,7 +287,6 @@ spec:
     - name: okdp-component-10-cert-issuers
     - name: okdp-component-10-coredns-patch
     - name: okdp-component-10-dns-server
-    - name: okdp-component-10-gitea
     - name: okdp-component-10-ingress-nginx
     - name: okdp-component-10-local-secrets-provider
     - name: okdp-component-10-spark-rbac
@@ -311,7 +310,6 @@ spec:
     - name: okdp-component-10-cert-issuers
     - name: okdp-component-10-coredns-patch
     - name: okdp-component-10-dns-server
-    - name: okdp-component-10-gitea
     - name: okdp-component-10-ingress-nginx
     - name: okdp-component-10-local-secrets-provider
     - name: okdp-component-10-spark-rbac
@@ -335,7 +333,6 @@ spec:
     - name: okdp-component-10-cert-issuers
     - name: okdp-component-10-coredns-patch
     - name: okdp-component-10-dns-server
-    - name: okdp-component-10-gitea
     - name: okdp-component-10-ingress-nginx
     - name: okdp-component-10-local-secrets-provider
     - name: okdp-component-10-spark-rbac
@@ -357,6 +354,7 @@ spec:
   wait: true
   dependsOn:
     - name: okdp-component-20-cnpg-postgresql
+    - name: okdp-component-20-gitea
     - name: okdp-component-20-keycloak
     - name: okdp-component-20-storage
     - name: okdp-component-20-trust-bundle
@@ -378,6 +376,24 @@ spec:
   wait: true
   dependsOn:
     - name: okdp-component-20-cnpg-postgresql
+    - name: okdp-component-20-gitea
     - name: okdp-component-20-keycloak
     - name: okdp-component-20-storage
     - name: okdp-component-20-trust-bundle
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: okdp-projects
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: okdp-gitops
+  path: ./gitops/projects
+  prune: true
+  dependsOn:
+    - name: okdp-component-30-okdp-control-plane-server
+    - name: okdp-component-30-okdp-control-plane-ui
