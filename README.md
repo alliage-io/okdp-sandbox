@@ -15,8 +15,8 @@ The platform ([`gitops/platform/components`](gitops/platform/components), one di
 | Layer | Components |
 |---|---|
 | `00` CRDs and operators | tools (Reloader, replicator, deletion protection), cert-manager, CloudNativePG, External Secrets, Spark Operator |
-| `10` infrastructure | ingress-nginx, cluster issuers and trust-manager, CoreDNS patch, DNS server, local secrets provider, **Gitea** (the deployments repository), Spark RBAC |
-| `20` identity, storage, databases | Keycloak and its PostgreSQL, SeaweedFS (S3), the CA trust bundle |
+| `10` infrastructure | ingress-nginx, cluster issuers and trust-manager, CoreDNS patch, DNS server, local secrets provider, Spark RBAC |
+| `20` identity, storage, databases | Keycloak and its PostgreSQL, SeaweedFS (S3), **Gitea** (the deployments repository), the CA trust bundle |
 | `30` control plane | OKDP Control Plane server and UI |
 
 The demo project ([`gitops/projects/demo`](gitops/projects/demo)): a PostgreSQL, the S3 store and the data services Hive Metastore, Polaris, Trino, Superset, Airflow, JupyterHub and Spark History Server, wired together by connection files.
@@ -125,13 +125,13 @@ kubectl patch deployment metrics-server -n kube-system --type=json \
 ### 3. Put the deployments repository in the cluster
 
 Gitea holds the deployments repository: the engine reads it, the console writes to it. It
-is the platform component [`10-gitea`](gitops/platform/components/10-gitea); install it
+is the platform component [`20-gitea`](gitops/platform/components/20-gitea); install it
 once with the same release name and values, the engine takes it over afterwards:
 
 ```sh
 helm upgrade --install gitea-gitea oci://docker.gitea.com/charts/gitea --version 12.7.0 \
   -n gitea --create-namespace --wait \
-  -f gitops/platform/platform-values.yaml -f gitops/platform/components/10-gitea/values.yaml
+  -f gitops/platform/platform-values.yaml -f gitops/platform/components/20-gitea/values.yaml
 ```
 
 Push this repository to it (the first push creates `okdp/okdp-sandbox`, public; the
@@ -186,7 +186,8 @@ kubectl -n argocd get applications --watch
 ```
 
 Either way, nothing else is applied by hand: the engine deploys the four platform layers
-in order, then the demo project. Everything is ready after 15 to 30 minutes, depending
+in order, then the demo project (Flux starts the projects once the platform is ready;
+Argo CD retries them until it is). Everything is ready after 15 to 30 minutes, depending
 on the machine and the network.
 
 ### Proxy (optional)

@@ -14,8 +14,9 @@
 #  limitations under the License.
 #
 
-# The platform values ConfigMap (engine-neutral platform/kustomization.yaml) and the
-# project services. Platform components are in components.yaml (generated).
+# The platform values and platform connection ConfigMaps (engine-neutral, generated
+# platform/kustomization.yaml). The platform components and the project services
+# (okdp-projects) are in components.yaml (generated).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -34,22 +35,3 @@ spec:
     name: okdp-gitops
   path: ./gitops/platform
   prune: true
----
-# Every projects/<p>/kustomization.yaml (Flux generates the root kustomization of
-# ./gitops/projects). No wait: one broken instance must not block the others; the
-# control plane server reads each HelmRelease's conditions.
-apiVersion: kustomize.toolkit.fluxcd.io/v1
-kind: Kustomization
-metadata:
-  name: okdp-projects
-  namespace: flux-system
-spec:
-  interval: 10m
-  retryInterval: 1m
-  sourceRef:
-    kind: GitRepository
-    name: okdp-gitops
-  path: ./gitops/projects
-  prune: true
-  dependsOn:
-    - name: okdp-platform-values

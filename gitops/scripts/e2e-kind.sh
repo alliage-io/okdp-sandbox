@@ -17,7 +17,7 @@
 
 # End-to-end test of one GitOps engine on a throwaway kind cluster, the way the
 # README installs the sandbox: kind cluster nokubocd-<engine> (own kubeconfig, the
-# current context is never used), Gitea bootstrapped with helm from the 10-gitea
+# current context is never used), Gitea bootstrapped with helm from the 20-gitea
 # component (then adopted by the engine), the layout pushed to
 # http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git (branch main),
 # the engine, its entry point, then a wait until every release is ready.
@@ -104,15 +104,14 @@ prepare_copy() {
     # shellcheck disable=SC2016
     local patch='[{"target": {"kind": "OCIRepository"}, "patch": "- op: add\n  path: /spec/insecure\n  value: true\n"}]'
     PATCH="$patch" yq -i '(select(.kind == "Kustomization") | .spec.patches) = env(PATCH)' "$g/flux/components.yaml"
-    PATCH="$patch" yq -i '(select(.metadata.name == "okdp-projects") | .spec.patches) = env(PATCH)' "$g/flux/platform.yaml"
   fi
   git -C "$COPY" init -q -b main
   git -C "$COPY" add -A
   git -C "$COPY" -c user.name=e2e -c user.email=e2e@okdp.io commit -q -m "e2e: $(git -C "$ROOT" rev-parse --short "$E2E_REF") adapted for $ENGINE"
 }
 
-GITEA_USER="$(yq '.gitea.admin.username' "$ROOT/platform/components/10-gitea/values.yaml")"
-GITEA_PASSWORD="$(yq '.gitea.admin.password' "$ROOT/platform/components/10-gitea/values.yaml")"
+GITEA_USER="$(yq '.gitea.admin.username' "$ROOT/platform/components/20-gitea/values.yaml")"
+GITEA_PASSWORD="$(yq '.gitea.admin.password' "$ROOT/platform/components/20-gitea/values.yaml")"
 
 push_copy() {
   log "pushing $E2E_REF (adapted) to okdp/okdp-sandbox main"
@@ -152,8 +151,8 @@ prepare_copy
 # -------------------------------------------------------------------- gitea
 # Bootstrap: the same release the engine manages afterwards (gitea-gitea in gitea),
 # with the component's values layers.
-g="$ROOT/platform/components/10-gitea"
-log "installing Gitea (bootstrap of the 10-gitea component)"
+g="$ROOT/platform/components/20-gitea"
+log "installing Gitea (bootstrap of the 20-gitea component)"
 helm upgrade --install "$(yq '.project + "-" + .name' "$g/instance.yaml")" "$(yq '.chart' "$g/instance.yaml")" \
   --version "$(yq '.version' "$g/instance.yaml")" -n "$(yq '.project' "$g/instance.yaml")" --create-namespace \
   -f "$ROOT/platform/platform-values.yaml" -f "$g/values.yaml" --wait --timeout 10m

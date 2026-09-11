@@ -24,7 +24,7 @@
 #   projects/<p>/kustomization.yaml               services + connection ConfigMaps
 #   platform/components/<NN>-<i>/helmrelease.yaml, kustomization.yaml
 #   platform/kustomization.yaml                   platform values + platform connection ConfigMaps
-#   flux/components.yaml                          one Flux Kustomization per component
+#   flux/components.yaml                          one Flux Kustomization per component + okdp-projects
 #
 # Usage: render-flux.sh [--root DIR] [--path-prefix PREFIX]
 #   --root         the layout root (default: the parent of this script's directory)
@@ -469,6 +469,26 @@ EOF
     previous=""
     for d in ${LAYER_COMPONENTS[$layer]}; do previous+="okdp-component-$d "; done
   done
+  # The project services start once the platform is ready (a service installed
+  # before the ingress webhook or the CA bundle exists exhausts its install retries).
+  cat <<EOF
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: okdp-projects
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  sourceRef:
+    kind: GitRepository
+    name: okdp-gitops
+  path: ${base%/platform/components}/projects
+  prune: true
+  dependsOn:
+EOF
+  for dep in $previous; do echo "    - name: $dep"; done
 } | write "$ROOT/flux/components.yaml"
 
 apply
