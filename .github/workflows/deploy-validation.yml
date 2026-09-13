@@ -78,13 +78,21 @@ jobs:
         run: gitops/scripts/e2e-kind.sh up argocd
 
       - name: Compare the two engines ✅
+        env:
+          # Expected differences, reported but not counted (docs/no-kubocd-e2e.md):
+          # - the control plane server follows the engine: gitops.engine
+          #   (GITOPS_ENGINE, the config checksum) and its engine RBAC;
+          # - the External Secrets webhook certificate Secret, which the ESO
+          #   cert-controller fills per cluster.
+          COMPARE_EXPECTED: >-
+            okdp-system/configmap/okdp-system-okdp-control-plane-server
+            okdp-system/deployment.apps/okdp-system-okdp-control-plane-server
+            okdp-system/clusterrole.rbac.authorization.k8s.io/okdp-system-okdp-control-plane-server
+            external-secrets/secret/external-secrets-external-secrets-webhook
         run: |
           gitops/scripts/compare-engines.sh "$E2E_DIR/flux.kubeconfig" "$E2E_DIR/argocd.kubeconfig" \
             $(cd gitops && find platform/components -name instance.yaml | sort \
-              | xargs -n1 yq '.project + "/" + .project + "-" + .name' \
-              | grep -v '^okdp-system/okdp-system-okdp-control-plane-server$')
-          # The control plane server differs on purpose: gitops.engine (GITOPS_ENGINE,
-          # engine RBAC) follows the engine.
+              | xargs -n1 yq '.project + "/" + .project + "-" + .name')
 
       - name: Diagnostics 🔎
         if: failure()
