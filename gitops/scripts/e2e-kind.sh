@@ -224,8 +224,11 @@ EOF
   argo_ready() {
     local n
     n="$(kubectl get applications.argoproj.io -n argocd -l okdp.io/instance -o json 2>/dev/null \
-      | jq '[.items[] | select(.status.sync.status == "Synced" and .status.health.status == "Healthy")] | length')"
-    log "Applications synced and healthy: ${n:-0}/$expected"
+      | jq '[.items[] | select(.status.sync.status == "Synced" and .status.health.status == "Healthy"
+          and .status.operationState.phase == "Succeeded")] | length')"
+    # The operation too: an Application stays Synced/Healthy while a failing hook
+    # (e.g. a schema Job) keeps its sync operation retrying.
+    log "Applications synced and healthy, last sync succeeded: ${n:-0}/$expected"
     [[ "${n:-0}" == "$expected" ]]
   }
   wait_for "Applications synced and healthy" argo_ready
