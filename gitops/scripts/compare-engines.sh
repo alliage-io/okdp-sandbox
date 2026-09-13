@@ -28,7 +28,17 @@
 #      argocd.argoproj.io/, meta.helm.sh/, plus kubectl last-applied-configuration,
 #      deployment revision and kustomize config.kubernetes.io/origin) and the
 #      caBundle injected into webhook configurations and CRD conversion webhooks
-#      (the CAs differ per cluster) are removed; the rest must be identical.
+#      (the CAs differ per cluster) are removed; so are the label
+#      app.kubernetes.io/managed-by: Helm (the Helm SDK of Flux adds it to every
+#      object, Argo only has it where the chart renders it), the Job controller-uid
+#      labels and selector, and the PersistentVolumeClaim binding (volumeName,
+#      selected node, provisioner annotations); the rest must be identical.
+# Hooks are not compared (ephemeral, deleted by their delete policy or TTL): Helm
+# hooks are absent from the Helm manifest, Argo hooks (status.resources[].hook) and
+# objects annotated argocd.argoproj.io/hook are left out of both lists.
+# COMPARE_EXPECTED: space separated <namespace>/<kind.group>/<name> whose
+# differences are expected (e.g. the control plane server's gitops.engine, set to
+# the engine under test): reported as EXPECTED, not counted.
 # Also compares ConfigMap okdp-releases/okdp-platform-values and every
 # okdp-releases/okdp-platform-conn-* ConfigMap.
 #
@@ -39,7 +49,7 @@
 set -euo pipefail
 export LC_ALL=C
 
-[[ $# -ge 2 ]] || { sed -n '18,39p' "$0"; exit 2; }
+[[ $# -ge 2 ]] || { sed -n '18,47p' "$0"; exit 2; }
 FLUX_KC="$1"; ARGO_KC="$2"; shift 2
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -55,6 +65,7 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 differences=0
 compared=0
+expected=0
 
 NORMALISE='
   def clean($prefixes): with_entries(select(.key as $k | all($prefixes[]; . as $p | $k | startswith($p) | not)));
@@ -62,6 +73,15 @@ NORMALISE='
       .metadata.creationTimestamp, .metadata.managedFields, .metadata.selfLink, .status)
   | if .metadata.labels then .metadata.labels |= clean(["helm.toolkit.fluxcd.io/",
       "kustomize.toolkit.fluxcd.io/", "argocd.argoproj.io/"]) else . end
+  | if .metadata.labels["app.kubernetes.io/managed-by"] == "Helm"
+    then del(.metadata.labels["app.kubernetes.io/managed-by"]) else . end
+  | if .kind == "Job" then del(.spec.selector,
+      .metadata.labels["batch.kubernetes.io/controller-uid"], .metadata.labels["controller-uid"],
+      .spec.template.metadata.labels["batch.kubernetes.io/controller-uid"],
+      .spec.template.metadata.labels["controller-uid"]) else . end
+  | if .kind == "PersistentVolumeClaim" then del(.spec.volumeName)
+      | .metadata.annotations |= (. // {} | clean(["pv.kubernetes.io/", "volume.kubernetes.io/",
+          "volume.beta.kubernetes.io/"])) else . end
   | if .metadata.annotations then .metadata.annotations |= clean(["helm.toolkit.fluxcd.io/",
       "kustomize.toolkit.fluxcd.io/", "argocd.argoproj.io/", "meta.helm.sh/",
       "kubectl.kubernetes.io/last-applied-configuration", "deployment.kubernetes.io/revision",
@@ -92,6 +112,10 @@ compare_object() {  # compare_object KIND.GROUP NAME NAMESPACE
   if diff -u --label "flux $ns/$res/$name" --label "argo $ns/$res/$name" \
        "$TMP/$key.flux" "$TMP/$key.argo" >"$TMP/$key.diff"; then
     echo "   same  $res $ns/$name"
+  elif [[ " ${COMPARE_EXPECTED:-} " == *" $ns/$res/$name "* ]]; then
+    echo "   EXPECTED  $res $ns/$name"
+    sed 's/^/      /' "$TMP/$key.diff"
+    expected=$((expected + 1))
   else
     echo "   DIFF  $res $ns/$name"
     sed 's/^/      /' "$TMP/$key.diff"
@@ -114,7 +138,8 @@ for t in "${TARGETS[@]}"; do
     echo "   DIFF  Flux has no Helm release $ns/$r: $(grep -v 'plugins' "$TMP/$r.err")"
     differences=$((differences + 1)); continue
   fi
-  yq ea -o=json -I=0 'select(.kind != null) | {"apiVersion": .apiVersion, "kind": .kind, "name": .metadata.name}' \
+  yq ea -o=json -I=0 'select(.kind != null and (.metadata.annotations["argocd.argoproj.io/hook"] == null))
+      | {"apiVersion": .apiVersion, "kind": .kind, "name": .metadata.name}' \
       "$TMP/$r.manifest" \
     | jq -r '(.kind | ascii_downcase)
         + (if (.apiVersion | contains("/")) then "." + (.apiVersion | split("/")[0]) else "" end)
@@ -124,7 +149,7 @@ for t in "${TARGETS[@]}"; do
     echo "   DIFF  Argo has no Application $r"
     differences=$((differences + 1)); continue
   fi
-  jq -r '.status.resources[]? | ((.kind | ascii_downcase) + (if (.group // "") != "" then "." + .group else "" end)) + "|" + .name' \
+  jq -r '.status.resources[]? | select(.hook != true) | ((.kind | ascii_downcase) + (if (.group // "") != "" then "." + .group else "" end)) + "|" + .name' \
     "$TMP/$r.app" | sort -u >"$TMP/$r.argo.list"
   if ! diff -u --label "flux objects" --label "argo objects" "$TMP/$r.flux.list" "$TMP/$r.argo.list" >"$TMP/$r.list.diff"; then
     echo "   DIFF  object lists differ"
@@ -136,5 +161,5 @@ for t in "${TARGETS[@]}"; do
   done < <(sort -u "$TMP/$r.flux.list" "$TMP/$r.argo.list")
 done
 
-echo "compared $compared object(s), $differences difference(s)"
+echo "compared $compared object(s), $differences difference(s), $expected expected difference(s)"
 (( differences == 0 ))
