@@ -194,6 +194,10 @@ Follow the Applications (one per component and per service):
 kubectl -n argocd get applications --watch
 ```
 
+The Argo CD UI is at https://argocd.okdp.sandbox once ingress-nginx and cert-manager are up
+([`gitops/argocd/ingress.yaml`](gitops/argocd/ingress.yaml)); user `admin`, password in
+secret `argocd/argocd-initial-admin-secret`.
+
 Either way, nothing else is applied by hand: the engine deploys the four platform layers
 in order, then the demo project (Flux starts the projects once the platform is ready;
 Argo CD retries them until it is). Everything is ready after 15 to 30 minutes, depending
@@ -212,7 +216,7 @@ Argo CD: the same on `argocd-repo-server`), and for the services in
 The ingress suffix and the OIDC URLs (the five endpoints and the DCR registration URL)
 are in [`gitops/platform/platform-values.yaml`](gitops/platform/platform-values.yaml).
 Change `okdp.sandbox` there (and in the Forgejo, storage and Keycloak component values that
-name hosts), commit and push: every release is re-rendered.
+name hosts, and in `gitops/argocd/ingress.yaml`), commit and push: every release is re-rendered.
 
 ### OAuth clients of the services (optional)
 
