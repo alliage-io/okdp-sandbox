@@ -1,6 +1,6 @@
 name: storage
 project: default
-service: seaweedfs
-chart: oci://quay.io/okdp/sandbox-charts/seaweedfs
-version: 4.47.0-1.0.1
+service: rustfs
+chart: oci://quay.io/okdp/sandbox-charts/rustfs
+version: 1.0.0-1.0.0
 connections: []
