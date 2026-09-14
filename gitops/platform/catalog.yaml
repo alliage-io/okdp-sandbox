@@ -22,15 +22,15 @@
 defaultRepository: oci://quay.io/okdp/platform-charts
 categories:
   - title: Data Catalog
-    icon: pi-database
+    icon: pi-warehouse
     services:
       - { name: hive-metastore, versions: ["4.0.1-1.0.1"], default: "4.0.1-1.0.1", description: Hive metastore }
       - { name: polaris, versions: ["1.3.0-incubating-2.0.0"], default: "1.3.0-incubating-2.0.0", description: Apache Polaris Iceberg catalog }
-  - title: Interactive Query
+  - title: Query Engine
     icon: pi-bolt
     services:
       - { name: trino, versions: ["480.0.0-1.0.1"], default: "480.0.0-1.0.1", description: Trino }
-  - title: SQL & BI
+  - title: BI & Dataviz
     icon: pi-chart-bar
     services:
       - { name: superset, versions: ["6.0.0-1.1.0"], default: "6.0.0-1.1.0", description: Superset }
@@ -38,11 +38,11 @@ categories:
     icon: pi-book
     services:
       - { name: jupyterhub, versions: ["4.4.2-1.0.1"], default: "4.4.2-1.0.1", description: JupyterHub }
-  - title: Data Engineering
+  - title: Workflows
     icon: pi-cog
     services:
       - { name: airflow, versions: ["3.2.1-1.0.1"], default: "3.2.1-1.0.1", description: Apache Airflow }
-  - title: Spark
-    icon: pi-bolt
+  - title: Data Engineering
+    icon: pi-microchip
     services:
       - { name: spark-history-server, versions: ["3.5.1-1.0.1"], default: "3.5.1-1.0.1", description: Spark History Server }
