@@ -1,8 +1,0 @@
-# Platform component 20-kubauth: the OKDP chart kubauth (packages/system/kubauth).
-# Optional: move this directory to platform/components/ (then run scripts/render-flux.sh).
-# Optional (was clusters/sandbox/optional/kubauth). The privileged client namespace comes
-# from global.okdp.oidc.kubauth.namespace (set it in platform-values.yaml when
-# clientProvisioning is kubauth).
-oidcIngressHost: kubauth
-oidcIngressAnnotations:
-  nginx.ingress.kubernetes.io/enable-cors: 'true'

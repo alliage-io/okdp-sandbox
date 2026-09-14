@@ -21,7 +21,7 @@ The platform ([`gitops/platform/components`](gitops/platform/components), one di
 
 The demo project ([`gitops/projects/demo`](gitops/projects/demo)): a PostgreSQL, the S3 store and the data services Hive Metastore, Polaris, Trino, Superset, Airflow, JupyterHub and Spark History Server, wired together by connection files.
 
-Optional ([`gitops/optional`](gitops/optional)): kubauth (the other identity provider), Vault (a secret backend), and the [okdp-examples](https://github.com/OKDP/okdp-examples) medallion lakehouse seed for the demo project.
+Optional ([`gitops/optional`](gitops/optional)): Vault (a secret backend), and the [okdp-examples](https://github.com/OKDP/okdp-examples) medallion lakehouse seed for the demo project.
 
 ## How it works
 
@@ -248,7 +248,11 @@ to Keycloak.
 3. **Deploy a service** from the console, or commit the same files: see
    [gitops/README.md](gitops/README.md) (`instance.yaml`, `values.yaml`, then
    `gitops/scripts/render-flux.sh` for the Flux files). The console's commits show up in
-   Gitea (https://gitea.okdp.sandbox).
+   Gitea (https://gitea.okdp.sandbox). The
+   [okdp CLI](https://github.com/OKDP/okdp-control-plane-cli) does the same from a
+   terminal: `okdp login https://okdp-ui.okdp.sandbox` (device flow or browser, the
+   console client allows both; add `--insecure-skip-tls-verify` if the sandbox
+   certificate is not installed), then `okdp service deploy`.
 4. **Examples**: move `gitops/optional/projects/demo/services/okdp-examples` to
    `gitops/projects/demo/services/`, run `gitops/scripts/render-flux.sh`, commit and push:
    the seed Job loads the NYC-taxi lakehouse. Then follow the
@@ -261,12 +265,6 @@ to `gitops/platform/components/`, run `gitops/scripts/render-flux.sh`, commit an
 Remove it the same way (deletion-protected objects, labelled `okdp.io/protected`, must be
 unlabelled first).
 
-- **kubauth**, the Kubernetes-native OIDC provider the console's identity screens talk to.
-  Installing it does not switch the platform over: the services keep Keycloak until
-  `global.okdp.oidc` says otherwise (`clientProvisioning: kubauth` and
-  `oidc.kubauth.namespace` in `platform-values.yaml`). kubauth ships no bootstrap account:
-  `kubectl apply -f gitops/optional/kubauth-admin.yaml` creates `useradmin` / `password`
-  in the `admins` group (change the hash first).
 - **vault**, a secret backend a console `SecretStore` can point at, in dev mode
   (in-memory, sealed on restart).
 

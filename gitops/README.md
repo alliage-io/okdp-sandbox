@@ -461,7 +461,7 @@ OCI chart (`repoURL` = chart reference without `oci://` and chart name, `chart` 
 name, `targetRevision` = version) and this repository as `ref: values`;
 `helm.valueFiles` lists the layers in contract order; `releaseName: <r>`; destination
 namespace `<p>` (`CreateNamespace=true`). Both ApplicationSets ignore the `caBundle`
-that cert-manager's cainjector, ingress-nginx's certgen hook, trust-manager or kubauth
+that cert-manager's cainjector, ingress-nginx's certgen hook or trust-manager
 inject after the apply (webhook configurations and CRD conversion webhooks,
 `RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Applications
 sync with `ServerSideApply=true` and diff server-side

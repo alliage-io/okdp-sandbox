@@ -11,6 +11,11 @@ realm:
   name: master
   displayName: OKDP internal Realm
   accessTokenLifespan: 3600
+  # The user fields of the console's user management (30-okdp-control-plane-server).
+  userProfile:
+    attributes:
+    - name: comment
+    - name: uid
 users:
 - username: bob
   email: bob@okdp.io
@@ -76,6 +81,18 @@ users:
   roles:
   - polaris_service_admin
   - polaris_catalog_admin
+# The service account of the console's user and group management (30-okdp-control-plane-server,
+# Keycloak Admin API): the realm-management roles of the master realm are the client roles
+# of master-realm. Declared here: keycloak-config-cli removes the role mappings the realm
+# does not declare.
+- username: service-account-okdp-control-plane
+  serviceAccountClientId: okdp-control-plane
+  clientRoles:
+    master-realm:
+    - view-users
+    - query-users
+    - manage-users
+    - query-groups
 - username: svc-trino-polaris-writer
   serviceAccountClientId: svc-trino-polaris-writer
   roles:
@@ -124,9 +141,14 @@ clients:
 - clientId: okdp-ui
   name: okdp-ui
   publicClient: true
+  # The okdp CLI logs in as the console client: http://127.0.0.1/* is the loopback
+  # redirect of its browser flow (any port), the attribute enables its device flow.
   redirectUris:
   - https://okdp-ui.${suffix}
   - https://okdp-ui.${suffix}/*
+  - http://127.0.0.1/*
+  attributes:
+    oauth2.device.authorization.grant.enabled: "true"
   webOrigins:
   - https://okdp-ui.${suffix}
   defaultClientScopes:
@@ -369,6 +391,14 @@ clients:
   - roles
   - profile
   - email
+- clientId: okdp-control-plane
+  name: okdp-control-plane
+  secret: myControlPlaneSecret
+  publicClient: false
+  serviceAccountsEnabled: true
+  standardFlowEnabled: false
+  implicitFlowEnabled: false
+  directAccessGrantsEnabled: false
 clientScopes:
 - name: groups
   description: Groups scope

@@ -52,10 +52,6 @@ global:
       dcr:
         registrationUrl: https://keycloak.okdp.sandbox/realms/master/clients-registrations/openid-connect
         authMethod: anonymous
-      # With clientProvisioning: kubauth (optional component 20-kubauth), also set the
-      # namespace of kubauth's privileged OIDC clients, where the services publish theirs:
-      # kubauth:
-      #   namespace: kubauth-oidc
 
     proxy:
       httpProxy: ""
