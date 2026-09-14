@@ -44,6 +44,9 @@ argocd/                           # Argo CD entry point
   platform-values.yaml            #   Application okdp-platform-values
   components.yaml                 #   ApplicationSet okdp-components (RollingSync by layer)
   services.yaml                   #   ApplicationSet okdp-services
+optional/                         # components and services not deployed, moved into place by hand
+  storage/<store>/                #   the 20-storage stores not in use (scripts/configure.sh)
+scripts/configure.sh              # chooses the engine (gitops.engine) and the 20-storage store
 scripts/render-flux.sh            # instance.yaml -> generated Flux files
 scripts/check.sh                  # CI: generated files up to date, shapes and contracts valid
 scripts/compare-engines.sh        # compares the live objects of two clusters (Flux vs Argo)
@@ -476,6 +479,12 @@ Application and its resources (finalizer). The generated `helmrelease.yaml` and
 
 ## Scripts
 
+- `scripts/configure.sh [-i] [--engine flux|argocd] [--storage seaweedfs|rustfs]`:
+  sets `gitops.engine` of the control plane server and swaps the `20-storage` component
+  (`instance.yaml`, `values.yaml`) with the one parked in `optional/storage/<store>`,
+  rewrites the `internalUrl` of the connection files pointing at the store, then runs
+  `render-flux.sh`. Without arguments on a terminal (or with `-i`) it asks, the current
+  values being the defaults; `--show` prints them. Edits the layout only. Needs yq v4.
 - `scripts/render-flux.sh [--root DIR] [--path-prefix PREFIX]`: validates every
   `instance.yaml` and writes the generated files. Writes nothing when anything is
   invalid. Needs bash 4+ and yq v4 (mikefarah).
