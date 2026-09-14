@@ -296,6 +296,9 @@ kind delete cluster --name okdp-sandbox
 rm /tmp/okdp-sandbox-config.yaml
 ```
 
+If you trusted the sandbox CA, remove it too: see
+[install-certificate.md](docs/install-certificate.md#removing-the-certificate).
+
 ## License
 
 This project is licensed under the [Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0).
