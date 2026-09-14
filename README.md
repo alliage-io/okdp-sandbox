@@ -248,7 +248,11 @@ to Keycloak.
 3. **Deploy a service** from the console, or commit the same files: see
    [gitops/README.md](gitops/README.md) (`instance.yaml`, `values.yaml`, then
    `gitops/scripts/render-flux.sh` for the Flux files). The console's commits show up in
-   Gitea (https://gitea.okdp.sandbox).
+   Gitea (https://gitea.okdp.sandbox). The
+   [okdp CLI](https://github.com/OKDP/okdp-control-plane-cli) does the same from a
+   terminal: `okdp login https://okdp-ui.okdp.sandbox` (device flow or browser, the
+   console client allows both; add `--insecure-skip-tls-verify` if the sandbox
+   certificate is not installed), then `okdp service deploy`.
 4. **Examples**: move `gitops/optional/projects/demo/services/okdp-examples` to
    `gitops/projects/demo/services/`, run `gitops/scripts/render-flux.sh`, commit and push:
    the seed Job loads the NYC-taxi lakehouse. Then follow the

@@ -21,6 +21,12 @@ secrets:
     data:
       username: okdp
       password: okdp-sandbox-Passw0rd
+  # The Keycloak service-account client of the console's user and group management
+  # (30-okdp-control-plane-server keycloak.credentialsSecret; client of 20-keycloak).
+  - name: okdp-control-plane-keycloak
+    data:
+      client_id: okdp-control-plane
+      client_secret: myControlPlaneSecret
   # S3 identities of the demo project's services: the grants of 20-storage.
   - name: creds-hive-metastore-s3
     data:

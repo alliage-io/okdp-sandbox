@@ -8,3 +8,9 @@ gitops:
   # flux or argocd: set it to the engine that deploys this repository.
   engine: flux
   credentialsSecret: okdp-gitops-credentials
+# User and group management through the Keycloak Admin API (URL and realm from the
+# platform OIDC issuer). Self-signed sandbox certificate.
+keycloak:
+  credentialsSecret:
+    name: okdp-control-plane-keycloak
+  tlsInsecure: true
