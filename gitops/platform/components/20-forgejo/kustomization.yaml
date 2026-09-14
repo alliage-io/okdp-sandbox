@@ -5,7 +5,7 @@ namespace: okdp-releases
 resources:
   - helmrelease.yaml
 configMapGenerator:
-  - name: "values-gitea-gitea"
+  - name: "values-forgejo-forgejo"
     files:
       - values.yaml
     options:

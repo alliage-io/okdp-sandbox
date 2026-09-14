@@ -31,7 +31,7 @@ spec:
   goTemplateOptions: ["missingkey=error"]
   generators:
     - git:
-        repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+        repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
         revision: main
         files:
           - path: gitops/platform/components/*/instance.yaml
@@ -109,6 +109,6 @@ spec:
               - '$values/{{ $.path.path | dir | dir }}/connections/{{ . }}.yaml'
             {{- end }}
               - '$values/{{ .path.path }}/values.yaml'
-        - repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+        - repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
           targetRevision: main
           ref: values

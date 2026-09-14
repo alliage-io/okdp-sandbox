@@ -16,7 +16,7 @@ The platform ([`gitops/platform/components`](gitops/platform/components), one di
 |---|---|
 | `00` CRDs and operators | tools (Reloader, replicator, deletion protection), cert-manager, CloudNativePG, External Secrets, Spark Operator |
 | `10` infrastructure | ingress-nginx, cluster issuers and trust-manager, CoreDNS patch, DNS server, local secrets provider, Spark RBAC |
-| `20` identity, storage, databases | Keycloak and its PostgreSQL, SeaweedFS (S3), **Gitea** (the deployments repository), the CA trust bundle |
+| `20` identity, storage, databases | Keycloak and its PostgreSQL, SeaweedFS (S3), **Forgejo** (the deployments repository), the CA trust bundle |
 | `30` control plane | OKDP Control Plane server and UI |
 
 The demo project ([`gitops/projects/demo`](gitops/projects/demo)): a PostgreSQL, the S3 store and the data services Hive Metastore, Polaris, Trino, Superset, Airflow, JupyterHub and Spark History Server, wired together by connection files.
@@ -27,7 +27,7 @@ Optional ([`gitops/optional`](gitops/optional)): Vault (a secret backend), and t
 
 ```
 basic user ─► console UI ─► control-plane server ─(git commit)─┐
-GitOps user ────────────────────────────(git commit / PR)────► deployments Git repo (Gitea)
+GitOps user ────────────────────────────(git commit / PR)────► deployments Git repo (Forgejo)
                                                                │
                               Flux: HelmRelease + OCIRepository │ Argo CD: ApplicationSet → Application
                                                                ▼
@@ -35,7 +35,7 @@ GitOps user ──────────────────────�
 ```
 
 - Every component and service is an OKDP Helm chart (or an upstream chart) with its values in Git: [`gitops/`](gitops) is the deployments repository. Its [README](gitops/README.md) specifies every file.
-- Git is the only desired state. The console commits to the in-cluster Gitea; so can you. Flux or Argo CD deploys what is in Git.
+- Git is the only desired state. The console commits to the in-cluster Forgejo; so can you. Flux or Argo CD deploys what is in Git.
 - The charts come from `oci://quay.io/okdp/platform-charts` ([platform-packages](https://github.com/OKDP/platform-packages)) and `oci://quay.io/okdp/sandbox-charts` ([sandbox-dependencies](https://github.com/OKDP/sandbox-dependencies)).
 
 | Concern | Owner |
@@ -124,21 +124,21 @@ kubectl patch deployment metrics-server -n kube-system --type=json \
 
 ### 3. Put the deployments repository in the cluster
 
-Gitea holds the deployments repository: the engine reads it, the console writes to it. It
-is the platform component [`20-gitea`](gitops/platform/components/20-gitea); install it
+Forgejo holds the deployments repository: the engine reads it, the console writes to it. It
+is the platform component [`20-forgejo`](gitops/platform/components/20-forgejo); install it
 once with the same release name and values, the engine takes it over afterwards:
 
 ```sh
-helm upgrade --install gitea-gitea oci://docker.gitea.com/charts/gitea --version 12.7.0 \
-  -n gitea --create-namespace --wait \
-  -f gitops/platform/platform-values.yaml -f gitops/platform/components/20-gitea/values.yaml
+helm upgrade --install forgejo-forgejo oci://code.forgejo.org/forgejo-helm/forgejo --version 17.1.7 \
+  -n forgejo --create-namespace --wait \
+  -f gitops/platform/platform-values.yaml -f gitops/platform/components/20-forgejo/values.yaml
 ```
 
 Push this repository to it (the first push creates `okdp/okdp-sandbox`, public; the
 account is `okdp` / `okdp-sandbox-Passw0rd`, see the component's values):
 
 ```sh
-kubectl -n gitea port-forward svc/gitea-http 3000:3000 &
+kubectl -n forgejo port-forward svc/forgejo-http 3000:3000 &
 git push http://okdp:okdp-sandbox-Passw0rd@localhost:3000/okdp/okdp-sandbox.git HEAD:main
 kill %1
 ```
@@ -166,7 +166,7 @@ flux get helmreleases -n okdp-releases
 
 Set the console's engine first: in
 [`30-okdp-control-plane-server/values.yaml`](gitops/platform/components/30-okdp-control-plane-server/values.yaml),
-`gitops.engine: argocd`; commit and push it to Gitea as above. Then:
+`gitops.engine: argocd`; commit and push it to Forgejo as above. Then:
 
 ```sh
 kubectl create namespace argocd
@@ -202,7 +202,7 @@ Argo CD: the same on `argocd-repo-server`), and for the services in
 
 The ingress suffix and the OIDC URLs (the five endpoints and the DCR registration URL)
 are in [`gitops/platform/platform-values.yaml`](gitops/platform/platform-values.yaml).
-Change `okdp.sandbox` there (and in the Gitea, storage and Keycloak component values that
+Change `okdp.sandbox` there (and in the Forgejo, storage and Keycloak component values that
 name hosts), commit and push: every release is re-rendered.
 
 ### OAuth clients of the services (optional)
@@ -248,7 +248,7 @@ to Keycloak.
 3. **Deploy a service** from the console, or commit the same files: see
    [gitops/README.md](gitops/README.md) (`instance.yaml`, `values.yaml`, then
    `gitops/scripts/render-flux.sh` for the Flux files). The console's commits show up in
-   Gitea (https://gitea.okdp.sandbox). The
+   Forgejo (https://forgejo.okdp.sandbox). The
    [okdp CLI](https://github.com/OKDP/okdp-control-plane-cli) does the same from a
    terminal: `okdp login https://okdp-ui.okdp.sandbox` (device flow or browser, the
    console client allows both; add `--insecure-skip-tls-verify` if the sandbox
