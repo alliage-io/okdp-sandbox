@@ -4,7 +4,7 @@ connections:
   demo-storage:
     contract: s3
     apiUrl: https://storage-default-api.okdp.sandbox
-    internalUrl: http://default-storage-s3.default.svc.cluster.local:8333
+    internalUrl: http://default-storage-svc.default.svc.cluster.local:9000
     region: us-east-1
     pathStyle: true
     secretRef:

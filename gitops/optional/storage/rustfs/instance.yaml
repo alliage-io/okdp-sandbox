@@ -1,6 +1,0 @@
-name: storage
-project: default
-service: rustfs
-chart: oci://quay.io/okdp/sandbox-charts/rustfs
-version: 1.0.0-1.0.0
-connections: []
