@@ -134,6 +134,14 @@ helm upgrade --install forgejo-forgejo oci://code.forgejo.org/forgejo-helm/forge
   -f gitops/platform/platform-values.yaml -f gitops/platform/components/20-forgejo/values.yaml
 ```
 
+Choose the GitOps engine and the object store before pushing (Flux and SeaweedFS by
+default); the script only edits the layout, run it without arguments to be asked:
+
+```sh
+gitops/scripts/configure.sh --engine argocd --storage rustfs   # or: gitops/scripts/configure.sh -i
+git add -A gitops && git commit -m "chore: configure the sandbox"
+```
+
 Push this repository to it (the first push creates `okdp/okdp-sandbox`, public; the
 account is `okdp` / `okdp-sandbox-Passw0rd`, see the component's values):
 
@@ -164,9 +172,10 @@ flux get helmreleases -n okdp-releases
 
 ### 4b. Install with Argo CD
 
-Set the console's engine first: in
-[`30-okdp-control-plane-server/values.yaml`](gitops/platform/components/30-okdp-control-plane-server/values.yaml),
-`gitops.engine: argocd`; commit and push it to Forgejo as above. Then:
+The console's engine must be `argocd` first (`gitops/scripts/configure.sh --engine argocd`,
+which sets `gitops.engine` in
+[`30-okdp-control-plane-server/values.yaml`](gitops/platform/components/30-okdp-control-plane-server/values.yaml));
+commit and push it to Forgejo as above. Then:
 
 ```sh
 kubectl create namespace argocd
@@ -268,7 +277,11 @@ unlabelled first).
 - **vault**, a secret backend a console `SecretStore` can point at, in dev mode
   (in-memory, sealed on restart).
 
-The object store (`20-storage`, SeaweedFS) can be replaced by any S3-compatible store:
+The object store (`20-storage`) is SeaweedFS or RustFS: `gitops/scripts/configure.sh
+--storage seaweedfs|rustfs` swaps the component with the one parked in
+[`gitops/optional/storage`](gitops/optional/storage) and rewrites the connection files'
+`internalUrl`. Choose before the first install: a new store starts empty. It can also be
+replaced by any other S3-compatible store:
 point `gitops/projects/demo/connections/demo-storage.yaml` at it, provide the credentials
 Secrets its `secretRef` and the services' `s3SecretRef` name, and create the buckets.
 
