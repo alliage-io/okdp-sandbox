@@ -26,7 +26,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1m
-  url: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+  url: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
   ref:
     branch: main
 ---

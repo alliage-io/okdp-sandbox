@@ -3,16 +3,16 @@
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
-  name: "gitea-gitea"
+  name: "forgejo-forgejo"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "gitea"
-    okdp.io/instance: "gitea-gitea"
+    okdp.io/project: "forgejo"
+    okdp.io/instance: "forgejo-forgejo"
 spec:
   interval: 10m
-  url: "oci://docker.gitea.com/charts/gitea"
+  url: "oci://code.forgejo.org/forgejo-helm/forgejo"
   ref:
-    tag: "12.7.0"
+    tag: "17.1.7"
   layerSelector:
     mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
     operation: copy
@@ -20,19 +20,19 @@ spec:
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
-  name: "gitea-gitea"
+  name: "forgejo-forgejo"
   namespace: okdp-releases
   labels:
-    okdp.io/project: "gitea"
-    okdp.io/instance: "gitea-gitea"
+    okdp.io/project: "forgejo"
+    okdp.io/instance: "forgejo-forgejo"
 spec:
   interval: 10m
-  releaseName: "gitea-gitea"
-  targetNamespace: "gitea"
-  storageNamespace: "gitea"
+  releaseName: "forgejo-forgejo"
+  targetNamespace: "forgejo"
+  storageNamespace: "forgejo"
   chartRef:
     kind: OCIRepository
-    name: "gitea-gitea"
+    name: "forgejo-forgejo"
   timeout: 15m
   install:
     createNamespace: true
@@ -50,5 +50,5 @@ spec:
       name: okdp-platform-values
       valuesKey: values.yaml
     - kind: ConfigMap
-      name: "values-gitea-gitea"
+      name: "values-forgejo-forgejo"
       valuesKey: values.yaml

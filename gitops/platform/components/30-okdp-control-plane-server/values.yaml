@@ -1,8 +1,8 @@
 # Platform component 30-okdp-control-plane-server: the OKDP chart
 # okdp-control-plane-server (platform-packages). The console's API: it commits to the
-# deployments repository served by 20-gitea and reads the cluster.
+# deployments repository served by 20-forgejo and reads the cluster.
 gitops:
-  repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+  repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
   branch: main
   path: gitops
   # flux or argocd: set it to the engine that deploys this repository.

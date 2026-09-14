@@ -1,18 +1,16 @@
-# Platform component 20-gitea: the upstream Gitea chart. The deployments Git repository of
-# the sandbox: Flux or Argo CD read it at
-# http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git, the console writes
-# to it (okdp-gitops-credentials). Bootstrapped once with helm (see README), then managed
-# by the engine like any component. Web UI: https://gitea.okdp.sandbox.
+# Platform component 20-forgejo: the upstream Forgejo chart. The deployments Git repository
+# of the sandbox: Flux or Argo CD read it at
+# http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git, the console
+# writes to it (okdp-gitops-credentials). Bootstrapped once with helm (see README), then
+# managed by the engine like any component. Web UI: https://forgejo.okdp.sandbox.
 # Sandbox credentials, assumed as such (same as okdp-gitops-credentials).
-fullnameOverride: gitea
-postgresql-ha: {enabled: false}
-postgresql: {enabled: false}
-valkey-cluster: {enabled: false}
-valkey: {enabled: false}
+fullnameOverride: forgejo
 test: {enabled: false}
 persistence:
   enabled: true
   size: 2Gi
+  claimName: forgejo-data
+# The chart keeps the gitea key for the Forgejo settings.
 gitea:
   admin:
     username: okdp
@@ -24,7 +22,7 @@ gitea:
     cache: {ADAPTER: memory}
     queue: {TYPE: level}
     server:
-      ROOT_URL: https://gitea.okdp.sandbox/
+      ROOT_URL: https://forgejo.okdp.sandbox/
     repository:
       # The first push creates okdp/okdp-sandbox, public: the engines read it anonymously.
       ENABLE_PUSH_CREATE_USER: true
@@ -35,9 +33,9 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: default-issuer
   hosts:
-    - host: gitea.okdp.sandbox
+    - host: forgejo.okdp.sandbox
       paths:
         - path: /
   tls:
-    - secretName: gitea-tls
-      hosts: [gitea.okdp.sandbox]
+    - secretName: forgejo-tls
+      hosts: [forgejo.okdp.sandbox]

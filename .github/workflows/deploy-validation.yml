@@ -17,7 +17,7 @@
 # End-to-end install validation of the deployments repository (gitops/), with both
 # GitOps engines, as the README installs it:
 #
-#   1. kind cluster nokubocd-flux: Gitea bootstrapped from the 10-gitea component,
+#   1. kind cluster nokubocd-flux: Forgejo bootstrapped from the 20-forgejo component,
 #      this commit pushed to it, Flux, gitops/flux/sync.yaml, wait for every
 #      HelmRelease (gitops/scripts/e2e-kind.sh up flux);
 #   2. kind cluster nokubocd-argocd: the same with Argo CD and gitops/argocd/;

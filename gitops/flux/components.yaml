@@ -248,7 +248,7 @@ spec:
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: okdp-component-20-gitea
+  name: okdp-component-20-forgejo
   namespace: flux-system
 spec:
   interval: 10m
@@ -257,7 +257,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: okdp-gitops
-  path: ./gitops/platform/components/20-gitea
+  path: ./gitops/platform/components/20-forgejo
   prune: true
   wait: true
   dependsOn:
@@ -354,7 +354,7 @@ spec:
   wait: true
   dependsOn:
     - name: okdp-component-20-cnpg-postgresql
-    - name: okdp-component-20-gitea
+    - name: okdp-component-20-forgejo
     - name: okdp-component-20-keycloak
     - name: okdp-component-20-storage
     - name: okdp-component-20-trust-bundle
@@ -376,7 +376,7 @@ spec:
   wait: true
   dependsOn:
     - name: okdp-component-20-cnpg-postgresql
-    - name: okdp-component-20-gitea
+    - name: okdp-component-20-forgejo
     - name: okdp-component-20-keycloak
     - name: okdp-component-20-storage
     - name: okdp-component-20-trust-bundle

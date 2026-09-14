@@ -17,9 +17,9 @@
 
 # End-to-end test of one GitOps engine on a throwaway kind cluster, the way the
 # README installs the sandbox: kind cluster nokubocd-<engine> (own kubeconfig, the
-# current context is never used), Gitea bootstrapped with helm from the 20-gitea
+# current context is never used), Forgejo bootstrapped with helm from the 20-forgejo
 # component (then adopted by the engine), the layout pushed to
-# http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git (branch main),
+# http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git (branch main),
 # the engine, its entry point, then a wait until every release is ready.
 #
 # What is pushed is a copy of the layout at E2E_REF, adapted for the test:
@@ -34,7 +34,7 @@
 #
 # Usage:
 #   e2e-kind.sh up   <flux|argocd>   create, deploy and wait
-#   e2e-kind.sh push <flux|argocd>   push E2E_REF again (adapted) to the cluster's Gitea
+#   e2e-kind.sh push <flux|argocd>   push E2E_REF again (adapted) to the cluster's Forgejo
 #   e2e-kind.sh down <flux|argocd>   delete the cluster
 # Environment:
 #   E2E_DIR       work directory (kubeconfigs, pushed copy), default ./.e2e
@@ -110,12 +110,12 @@ prepare_copy() {
   git -C "$COPY" -c user.name=e2e -c user.email=e2e@okdp.io commit -q -m "e2e: $(git -C "$ROOT" rev-parse --short "$E2E_REF") adapted for $ENGINE"
 }
 
-GITEA_USER="$(yq '.gitea.admin.username' "$ROOT/platform/components/20-gitea/values.yaml")"
-GITEA_PASSWORD="$(yq '.gitea.admin.password' "$ROOT/platform/components/20-gitea/values.yaml")"
+FORGEJO_USER="$(yq '.gitea.admin.username' "$ROOT/platform/components/20-forgejo/values.yaml")"
+FORGEJO_PASSWORD="$(yq '.gitea.admin.password' "$ROOT/platform/components/20-forgejo/values.yaml")"
 
 push_copy() {
   log "pushing $E2E_REF (adapted) to okdp/okdp-sandbox main"
-  kubectl -n gitea port-forward svc/gitea-http 0:3000 >"$E2E_DIR/$ENGINE.pf.log" 2>&1 &
+  kubectl -n forgejo port-forward svc/forgejo-http 0:3000 >"$E2E_DIR/$ENGINE.pf.log" 2>&1 &
   local pf=$! port=""
   for _ in $(seq 30); do
     port="$(sed -n 's/.*127.0.0.1:\([0-9]*\) ->.*/\1/p' "$E2E_DIR/$ENGINE.pf.log" | head -n 1)"
@@ -123,7 +123,7 @@ push_copy() {
     sleep 1
   done
   [[ -n "$port" ]] || { log "port-forward failed"; cat "$E2E_DIR/$ENGINE.pf.log"; kill $pf; exit 1; }
-  git -C "$COPY" push -q --force "http://$GITEA_USER:$GITEA_PASSWORD@127.0.0.1:$port/okdp/okdp-sandbox.git" main
+  git -C "$COPY" push -q --force "http://$FORGEJO_USER:$FORGEJO_PASSWORD@127.0.0.1:$port/okdp/okdp-sandbox.git" main
   kill $pf 2>/dev/null || true
 }
 
@@ -148,11 +148,11 @@ done
 
 prepare_copy
 
-# -------------------------------------------------------------------- gitea
-# Bootstrap: the same release the engine manages afterwards (gitea-gitea in gitea),
+# -------------------------------------------------------------------- forgejo
+# Bootstrap: the same release the engine manages afterwards (forgejo-forgejo in forgejo),
 # with the component's values layers.
-g="$ROOT/platform/components/20-gitea"
-log "installing Gitea (bootstrap of the 20-gitea component)"
+g="$ROOT/platform/components/20-forgejo"
+log "installing Forgejo (bootstrap of the 20-forgejo component)"
 helm upgrade --install "$(yq '.project + "-" + .name' "$g/instance.yaml")" "$(yq '.chart' "$g/instance.yaml")" \
   --version "$(yq '.version' "$g/instance.yaml")" -n "$(yq '.project' "$g/instance.yaml")" --create-namespace \
   -f "$ROOT/platform/platform-values.yaml" -f "$g/values.yaml" --wait --timeout 10m

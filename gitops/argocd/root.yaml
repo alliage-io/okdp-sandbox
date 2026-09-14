@@ -23,7 +23,7 @@ metadata:
 spec:
   project: okdp
   source:
-    repoURL: http://gitea-http.gitea.svc.cluster.local:3000/okdp/okdp-sandbox.git
+    repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
     targetRevision: main
     path: gitops/argocd
   destination:
