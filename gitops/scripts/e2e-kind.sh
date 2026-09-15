@@ -87,7 +87,7 @@ prepare_copy() {
   git -C "$(git -C "$ROOT" rev-parse --show-toplevel)" archive "$E2E_REF" | tar -x -C "$COPY"
   local g="$COPY/$PREFIX" f
   [[ -z "$E2E_SKIP_PROJECTS" ]] || rm -rf "$g/projects"/*
-  yq -i ".gitops.engine = \"$ENGINE\"" "$g/platform/components/30-okdp-control-plane-server/values.yaml"
+  ENGINE="$ENGINE" yq -i '.gitops.engine = strenv(ENGINE)' "$g/platform/components/30-okdp-control-plane-server/values.yaml"
   if [[ -n "$E2E_CHART_MAP" ]]; then
     local from="${E2E_CHART_MAP%%=*}" to="${E2E_CHART_MAP#*=}"
     while IFS= read -r f; do
@@ -96,7 +96,7 @@ prepare_copy() {
     FROM="$from" TO="$to" yq -i '.defaultRepository |= sub("^" + strenv(FROM); strenv(TO))' "$g/platform/catalog.yaml"
   fi
   if [[ -n "$E2E_PLAIN_HTTP_REGISTRY" ]]; then
-    yq -i ".insecureOciRegistries = \"$E2E_PLAIN_HTTP_REGISTRY\"" "$g/platform/components/30-okdp-control-plane-server/values.yaml"
+    REG="$E2E_PLAIN_HTTP_REGISTRY" yq -i '.insecureOciRegistries = strenv(REG)' "$g/platform/components/30-okdp-control-plane-server/values.yaml"
   fi
   "$g/scripts/render-flux.sh" --root "$g" --path-prefix "$PREFIX" >/dev/null
   if [[ -n "$E2E_PLAIN_HTTP_REGISTRY" ]]; then
@@ -123,8 +123,25 @@ push_copy() {
     sleep 1
   done
   [[ -n "$port" ]] || { log "port-forward failed"; cat "$E2E_DIR/$ENGINE.pf.log"; kill $pf; exit 1; }
-  git -C "$COPY" push -q --force "http://$FORGEJO_USER:$FORGEJO_PASSWORD@127.0.0.1:$port/okdp/okdp-sandbox.git" main
+  # The credentials go through GIT_ASKPASS (environment, not the command line: a
+  # password in the URL shows in ps); no credential helper stores them.
+  local askpass
+  askpass="$(mktemp -d)"
+  cat >"$askpass/askpass.sh" <<'ASKPASS'
+#!/bin/sh
+case "$1" in
+  Username*) printf '%s\n' "$E2E_GIT_USER" ;;
+  *) printf '%s\n' "$E2E_GIT_PASSWORD" ;;
+esac
+ASKPASS
+  chmod 700 "$askpass/askpass.sh"
+  local rc=0
+  GIT_ASKPASS="$askpass/askpass.sh" GIT_TERMINAL_PROMPT=0 \
+    E2E_GIT_USER="$FORGEJO_USER" E2E_GIT_PASSWORD="$FORGEJO_PASSWORD" \
+    git -C "$COPY" -c credential.helper= push -q --force "http://127.0.0.1:$port/okdp/okdp-sandbox.git" main || rc=$?
+  rm -rf "$askpass"
   kill $pf 2>/dev/null || true
+  return "$rc"
 }
 
 if [[ "$ACTION" == push ]]; then
