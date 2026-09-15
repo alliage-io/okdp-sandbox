@@ -8,6 +8,22 @@ OKDP Sandbox is a hands-on environment for deploying, testing, and exploring the
 
 It deploys the platform foundations (identity, object storage, SQL, secrets, ingress), the OKDP Control Plane and a demo project on a local cluster, from a Git repository, with **Flux or Argo CD**: pick one, the repository is the same. Data services (Spark jobs, notebooks, SQL querying, dashboards) are then instantiated per project through the Control Plane, or by writing the same files in Git.
 
+## Security notice
+
+The sandbox is for a single workstation, not a shared or reachable environment:
+
+- It ships **published demo credentials**: Keycloak admin `admin` / `admin`, console user
+  `adm` / `adm` (and the other demo users and client secrets of
+  [`20-keycloak`](gitops/platform/components/20-keycloak/values.yaml)), Forgejo `okdp` /
+  `okdp-sandbox-Passw0rd` (the deployments repository is public, and whoever can push to
+  it controls the cluster), and, with the optional Vault, the dev-mode root token `root`.
+  Never reuse them, and never reuse these values outside the sandbox.
+- **Do not expose it beyond localhost.** The kind port mappings below listen on
+  `127.0.0.1` only; keep it that way (no `0.0.0.0`, no port forwarding from other hosts).
+- The sandbox CA can issue a certificate for any name. If you trust it (step 6),
+  **remove it from your trust store after use** (see
+  [install-certificate.md](docs/install-certificate.md#removing-the-certificate)).
+
 ## What is included in the sandbox?
 
 The platform ([`gitops/platform/components`](gitops/platform/components), one directory per component, deployed in layers):
@@ -149,11 +165,12 @@ git add -A gitops && git commit -m "chore: configure the sandbox"
 ```
 
 Push this repository to it (the first push creates `okdp/okdp-sandbox`, public; the
-account is `okdp` / `okdp-sandbox-Passw0rd`, see the component's values):
+account is `okdp` / `okdp-sandbox-Passw0rd`, see the component's values). Git asks for
+the password, so it does not end up in your shell history:
 
 ```sh
 kubectl -n forgejo port-forward svc/forgejo-http 3000:3000 &
-git push http://okdp:okdp-sandbox-Passw0rd@localhost:3000/okdp/okdp-sandbox.git HEAD:main
+git push http://okdp@localhost:3000/okdp/okdp-sandbox.git HEAD:main
 kill %1
 ```
 
