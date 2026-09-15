@@ -47,6 +47,8 @@ global:
       scope: "openid profile email groups"
       usePKCE: true
       # Self-signed sandbox certificate the server pod does not carry a CA for.
+      # SANDBOX ONLY: disables TLS verification of the OIDC provider. Must be false in
+      # production (give the pods the CA bundle instead, e.g. trust-manager's certs-bundle).
       insecureSkipVerify: true
       clientProvisioning: dcr
       dcr:
