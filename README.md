@@ -75,10 +75,13 @@ nodes:
   extraPortMappings:
   - containerPort: 30080
     hostPort: 80
+    listenAddress: "127.0.0.1"
   - containerPort: 30443
     hostPort: 443
+    listenAddress: "127.0.0.1"
   - containerPort: 30053
     hostPort: 30053
+    listenAddress: "127.0.0.1"
     protocol: UDP
 EOF
 kind create cluster --config /tmp/okdp-sandbox-config.yaml
@@ -98,10 +101,13 @@ nodes:
   extraPortMappings:
   - containerPort: 30080
     hostPort: 80
+    listenAddress: "127.0.0.1"
   - containerPort: 30443
     hostPort: 443
+    listenAddress: "127.0.0.1"
   - containerPort: 30053
     hostPort: 53
+    listenAddress: "127.0.0.1"
     protocol: UDP
 "@ | Out-File -FilePath "$env:TEMP\okdp-sandbox-config.yaml" -Encoding UTF8
 kind create cluster --config "$env:TEMP\okdp-sandbox-config.yaml"
