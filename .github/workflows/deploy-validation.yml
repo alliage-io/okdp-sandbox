@@ -55,6 +55,11 @@ env:
   E2E_TIMEOUT: "2400"
   FLUX_VERSION: v2.9.5
   ARGOCD_VERSION: v3.4.2
+  HELM_VERSION: v3.21.4   # same Helm 3 as OKDP/gh-workflows okdp-chart-ci.yml
+  KIND_VERSION: v0.33.0
+  # sha256 of kind-linux-amd64 ${KIND_VERSION}, from the release's
+  # kind-linux-amd64.sha256sum. Update both together.
+  KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
 
 jobs:
   deploy-validation:
@@ -68,12 +73,22 @@ jobs:
       - name: Free up disk space 📦
         uses: okdp/gh-workflows/.github/actions/free-disk-space@v1
 
-      - name: Set up kind, helm and the Flux CLI 🛠️
+      - name: Set up helm 🛠️
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Set up the Flux CLI 🛠️
+        uses: fluxcd/flux2/action@dd233c4fadef306a62b7893204f8e3817fecc2b2 # v2.9.5
+        with:
+          version: ${{ env.FLUX_VERSION }}
+
+      - name: Set up kind 🛠️
         run: |
-          curl -sSfLo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64
-          chmod +x /usr/local/bin/kind
-          curl -sSfL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          curl -sSfL https://fluxcd.io/install.sh | bash -s -- --version "${FLUX_VERSION#v}"
+          set -euo pipefail
+          curl -sSfLo "${RUNNER_TEMP}/kind" "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  ${RUNNER_TEMP}/kind" | sha256sum -c -
+          sudo install -m 0755 "${RUNNER_TEMP}/kind" /usr/local/bin/kind
           kind version; helm version; flux version --client
 
       - name: Deploy with Flux 🚀
