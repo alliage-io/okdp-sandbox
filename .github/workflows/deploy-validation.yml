@@ -42,6 +42,9 @@ on:
       - "gitops/**"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 defaults:
   run:
     shell: bash
