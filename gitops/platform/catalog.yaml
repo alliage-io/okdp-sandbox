@@ -26,6 +26,10 @@ categories:
     services:
       - { name: hive-metastore, versions: ["4.0.1-1.0.0"], default: "4.0.1-1.0.0", description: Hive metastore }
       - { name: polaris, versions: ["1.3.0-incubating-2.0.0"], default: "1.3.0-incubating-2.0.0", description: Apache Polaris Iceberg catalog }
+  - title: Database
+    icon: pi-database
+    services:
+      - { name: cnpg-postgresql, repository: quay.io/okdp/sandbox-charts, versions: ["18.3.0-1.0.0"], default: "18.3.0-1.0.0", description: PostgreSQL cluster (CloudNativePG) }
   - title: Query Engine
     icon: pi-bolt
     services:
