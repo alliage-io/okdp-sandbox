@@ -23,7 +23,7 @@
 repositories:
   - name: platform-charts
     url: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/platform-charts.git
-    ref: okdp-compiler
+    ref: feat/add-open-metadata
   - name: sandbox-dependencies
     url: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/sandbox-dependencies.git
     ref: okdp-compiler
@@ -37,6 +37,10 @@ categories:
     services:
       - { name: hive-metastore, description: Hive metastore }
       - { name: polaris, description: Apache Polaris Iceberg catalog }
+  - title: Data Governance
+    icon: pi-shield
+    services:
+      - { name: openmetadata, description: OpenMetadata }
   - title: Database
     icon: pi-database
     services:
