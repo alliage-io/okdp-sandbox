@@ -27,6 +27,10 @@ categories:
     services:
       - { name: hive-metastore, versions: ["4.0.1-1.0.0"], default: "4.0.1-1.0.0", description: Hive metastore }
       - { name: polaris, versions: ["1.3.0-incubating-1.0.0"], default: "1.3.0-incubating-1.0.0", description: Apache Polaris Iceberg catalog }
+  - title: Data Governance
+    icon: pi-shield
+    services:
+      - { name: openmetadata, versions: ["2.0.2-1.0.0"], default: "2.0.2-1.0.0", description: OpenMetadata }
   - title: Database
     icon: pi-database
     services:
