@@ -39,11 +39,13 @@ flux/                             # Flux entry point
   components.yaml                 #   generated: one Kustomization per platform component, okdp-projects
   kustomization.yaml
 argocd/                           # Argo CD entry point
-  project.yaml                    #   AppProject okdp
+  project.yaml                    #   AppProject okdp (platform)
   root.yaml                       #   Application okdp (manages argocd/ itself)
   platform-values.yaml            #   Application okdp-platform-values
   components.yaml                 #   ApplicationSet okdp-components (RollingSync by layer)
   services.yaml                   #   ApplicationSet okdp-services
+  projects.yaml                   #   ApplicationSet okdp-projects (one AppProject per project)
+  okdp-project/                   #   chart of the AppProject project-<p>
 optional/                         # components and services not deployed, moved into place by hand
   storage/<store>/                #   the 20-storage stores not in use (scripts/configure.sh)
 scripts/configure.sh              # chooses the engine (gitops.engine) and the 20-storage store
@@ -453,7 +455,7 @@ kubectl -n argocd rollout restart deployment argocd-applicationset-controller
 ```
 
 1. Set the Git URL/branch in `argocd/root.yaml`, `argocd/platform-values.yaml`,
-   `argocd/components.yaml` and `argocd/services.yaml` (and the `gitops/` prefix of
+   `argocd/components.yaml`, `argocd/services.yaml` and `argocd/projects.yaml` (and the `gitops/` prefix of
    the paths if the layout is elsewhere). Commit.
 2. `kubectl apply -n argocd -f gitops/argocd/`
 
@@ -463,7 +465,14 @@ Argo CD then manages `argocd/` itself (Application `okdp`), the platform values
 OCI chart (`repoURL` = chart reference without `oci://` and chart name, `chart` =
 name, `targetRevision` = version) and this repository as `ref: values`;
 `helm.valueFiles` lists the layers in contract order; `releaseName: <r>`; destination
-namespace `<p>` (`CreateNamespace=true`). Both ApplicationSets ignore the `caBundle`
+namespace `<p>` (`CreateNamespace=true` for the components). A service belongs to the
+AppProject `project-<p>` (Application `okdp-project-<p>`, chart `argocd/okdp-project`,
+one per `projects/<p>/project.yaml`): sources limited to this repository and the OKDP
+chart registries (`chartRepositories`), destination limited to namespace `<p>`, no
+cluster-scoped resource. The same chart creates namespace `<p>` (the services cannot)
+and keeps it when the project is removed (`Delete=false`). `<p>` is the directory name, not the `project` key of
+`instance.yaml`, so a file of a project cannot target another namespace; the platform
+components keep the AppProject `okdp`. Both ApplicationSets ignore the `caBundle`
 that cert-manager's cainjector, ingress-nginx's certgen hook or trust-manager
 inject after the apply (webhook configurations and CRD conversion webhooks,
 `RespectIgnoreDifferences=true`); `compare-engines.sh` ignores it too. Applications

@@ -17,7 +17,9 @@
 # Argo CD entry point. Bootstrap once with:
 #   kubectl apply -n argocd -f gitops/argocd/
 # then Application "okdp" (root.yaml) manages this directory from Git.
-# The Git URL, branch and layout prefix ("gitops/") appear in root.yaml,
+# platform-values.yaml, components.yaml, services.yaml and projects.yaml.
+# Platform AppProject: the platform components and the entry point itself. The
+# services of each project use their own AppProject project-<p> (projects.yaml).
 # platform-values.yaml, components.yaml and services.yaml.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -25,7 +27,7 @@ metadata:
   name: okdp
   namespace: argocd
 spec:
-  description: OKDP platform components and project services.
+  description: OKDP platform components and the Argo CD entry point.
   sourceRepos:
     - "*"
   destinations:

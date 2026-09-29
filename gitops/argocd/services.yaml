@@ -18,6 +18,9 @@
 # Values layers, in order: platform/platform-values.yaml, each connection file listed
 # in instance.yaml "connections", then values.yaml. The layer paths are relative to
 # the matched instance.yaml, so the layout prefix only appears in the generator path.
+# <p> is the projects/<p> directory name, not instance.yaml "project" (render-flux.sh
+# requires both to be equal): the Application belongs to AppProject project-<p>
+# (projects.yaml), which only allows namespace <p>.
 # The sources live in templatePatch because valueFiles ranges over "connections".
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -35,10 +38,10 @@ spec:
           - path: gitops/projects/*/services/*/instance.yaml
   template:
     metadata:
-      name: '{{ .project }}-{{ .name }}'
+      name: '{{ .path.path | dir | dir | base }}-{{ .name }}'
       labels:
-        okdp.io/project: '{{ .project }}'
-        okdp.io/instance: '{{ .project }}-{{ .name }}'
+        okdp.io/project: '{{ .path.path | dir | dir | base }}'
+        okdp.io/instance: '{{ .path.path | dir | dir | base }}-{{ .name }}'
       annotations:
         # Diff as the API server would apply it (defaults and mutating webhooks such as
         # CloudNativePG's or trust-manager's), consistent with ServerSideApply=true.
@@ -46,10 +49,10 @@ spec:
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
-      project: okdp
+      project: 'project-{{ .path.path | dir | dir | base }}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{ .project }}'
+        namespace: '{{ .path.path | dir | dir | base }}'
       ignoreDifferences:
         # Injected after the apply by cert-manager's cainjector, ingress-nginx's
         # certgen hook, trust-manager...: self-heal would revert them.
@@ -67,7 +70,6 @@ spec:
           prune: true
           selfHeal: true
         syncOptions:
-          - CreateNamespace=true
           - RespectIgnoreDifferences=true
           # Large CRDs (CloudNativePG, External Secrets) exceed the client-side apply
           # annotation limit; Flux's helm-controller applies server-side too.
@@ -86,7 +88,7 @@ spec:
           chart: '{{ .chart | base }}'
           targetRevision: '{{ .version }}'
           helm:
-            releaseName: '{{ .project }}-{{ .name }}'
+            releaseName: '{{ .path.path | dir | dir | base }}-{{ .name }}'
             valueFiles:
               - '$values/{{ .path.path | dir | dir | dir | dir }}/platform/platform-values.yaml'
             {{- range .connections }}

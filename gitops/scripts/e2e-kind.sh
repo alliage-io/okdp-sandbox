@@ -25,7 +25,8 @@
 # What is pushed is a copy of the layout at E2E_REF, adapted for the test:
 #   - the control plane server's gitops.engine is set to the engine under test;
 #   - E2E_CHART_MAP rewrites chart references (unpublished charts in a local
-#     registry) in every instance.yaml and in the catalog, then render-flux.sh runs;
+#     registry) in every instance.yaml, in the catalog and in the chart registries
+#     the project AppProjects allow, then render-flux.sh runs;
 #   - E2E_PLAIN_HTTP_REGISTRY (host:port) is reached over plain HTTP: Flux
 #     OCIRepositories get spec.insecure (Kustomization patches), Argo CD gets one
 #     repository Secret per chart repository (insecureOCIForceHttp), the server
@@ -94,6 +95,8 @@ prepare_copy() {
       FROM="$from" TO="$to" yq -i '.chart |= sub("^" + strenv(FROM); strenv(TO))' "$f"
     done < <(find "$g" -name instance.yaml -not -path "$g/optional/*")
     FROM="$from" TO="$to" yq -i '.defaultRepository |= sub("^" + strenv(FROM); strenv(TO))' "$g/platform/catalog.yaml"
+    # The chart registries the project AppProjects allow (Argo CD patterns, no oci://).
+    FROM="${from#oci://}" TO="${to#oci://}" yq -i '.chartRepositories |= sub("^" + strenv(FROM); strenv(TO))' "$g/argocd/okdp-project/values.yaml"
   fi
   if [[ -n "$E2E_PLAIN_HTTP_REGISTRY" ]]; then
     REG="$E2E_PLAIN_HTTP_REGISTRY" yq -i '.insecureOciRegistries = strenv(REG)' "$g/platform/components/30-okdp-control-plane-server/values.yaml"
