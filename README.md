@@ -246,13 +246,13 @@ name hosts, and in `gitops/argocd/ingress.yaml`), commit and push: every release
 The sandbox registers the services' OAuth clients by dynamic client registration
 (`global.okdp.oidc.clientProvisioning: dcr`): each service's oidc-dcr Job registers its
 client in Keycloak (anonymous registration, `anonymousDCR` in
-[`20-keycloak`](gitops/platform/components/20-keycloak/values.yaml)) and writes it to
-Secret `<release>-<namespace>-dcr`. The console's own client (`okdp-ui`) stays declared
-in the Keycloak realm. The alternative is `clientProvisioning: existing` (drop the `dcr`
-block): the services then use the clients declared in `20-keycloak` and their Secrets
-`creds-<release>-oauth2` (`projects/demo/services/secrets`). Anonymous registration does
-not check where a registration comes from (`checkSenderHost: false`): fine on a sandbox,
-see the keycloak chart before exposing such a Keycloak.
+[`20-keycloak`](gitops/platform/components/20-keycloak/values.yaml)) and writes it to Secret
+`<release>-<namespace>-dcr`. The Job runs `quay.io/adaltas/oidc-dcr-job`.
+The console's own client (`okdp-ui`) stays declared in the Keycloak realm. The alternative is
+`clientProvisioning: existing` (drop the `dcr` block): the services then use the clients declared in
+`20-keycloak` and their Secrets `creds-<release>-oauth2` (`projects/demo/services/secrets`).
+Anonymous registration does not check where a registration comes from (`checkSenderHost: false`):
+fine on a sandbox, see the keycloak chart before exposing such a Keycloak.
 
 ### 5. DNS setup
 
