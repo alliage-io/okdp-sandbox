@@ -37,7 +37,7 @@ categories:
   - title: BI & Dataviz
     icon: pi-chart-bar
     services:
-      - { name: superset, versions: ["6.0.0-1.1.0"], default: "6.0.0-1.1.0", description: Superset }
+      - { name: superset, versions: ["6.0.0-1.0.0"], default: "6.0.0-1.0.0", description: Superset }
   - title: Notebooks
     icon: pi-book
     services:
