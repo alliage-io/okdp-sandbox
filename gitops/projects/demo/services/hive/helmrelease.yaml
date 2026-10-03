@@ -10,7 +10,8 @@ metadata:
     okdp.io/instance: "demo-hive"
 spec:
   interval: 10m
-  url: "oci://quay.io/okdp/platform-charts/hive-metastore"
+  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+  url: "oci://repo.alliage.io:8082/okdp/platform-charts/hive-metastore"
   ref:
     tag: "4.0.1-1.0.1"
   layerSelector:

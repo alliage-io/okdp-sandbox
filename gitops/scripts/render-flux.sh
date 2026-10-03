@@ -174,7 +174,9 @@ read_instance() {
 # CONN_PREFIX: "conn-<p>-" for a service, "okdp-platform-conn-" for a component.
 emit_helmrelease() {
   local p="$1" i="$2" chart="$3" version="$4" cprefix="$5"; shift 5
-  local r="$p-$i" c
+  local r="$p-$i" c note=""
+  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+  [[ "$chart" == oci://repo.alliage.io* ]] && note=$'  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.\n'
   cat <<EOF
 $HEADER
 ---
@@ -188,7 +190,7 @@ metadata:
     okdp.io/instance: "$r"
 spec:
   interval: 10m
-  url: "$chart"
+${note}  url: "$chart"
   ref:
     tag: "$version"
   layerSelector:

@@ -10,7 +10,8 @@ metadata:
     okdp.io/instance: "demo-superset"
 spec:
   interval: 10m
-  url: "oci://quay.io/okdp/platform-charts/superset"
+  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+  url: "oci://repo.alliage.io:8082/okdp/platform-charts/superset"
   ref:
     tag: "6.0.0-1.1.1"
   layerSelector:

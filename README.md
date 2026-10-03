@@ -52,7 +52,7 @@ GitOps user ──────────────────────�
 
 - Every component and service is an OKDP Helm chart (or an upstream chart) with its values in Git: [`gitops/`](gitops) is the deployments repository. Its [README](gitops/README.md) specifies every file.
 - Git is the only desired state. The console commits to the in-cluster Forgejo; so can you. Flux or Argo CD deploys what is in Git.
-- The charts come from `oci://quay.io/okdp/platform-charts` ([platform-packages](https://github.com/OKDP/platform-packages)) and `oci://quay.io/okdp/sandbox-charts` ([sandbox-dependencies](https://github.com/OKDP/sandbox-dependencies)).
+- The charts come from `oci://repo.alliage.io:8082/okdp/platform-charts` ([platform-packages](https://github.com/OKDP/platform-packages)) and `oci://repo.alliage.io:8082/okdp/sandbox-charts` ([sandbox-dependencies](https://github.com/OKDP/sandbox-dependencies)), over plain HTTP: Argo CD reaches them through the repository Secrets of [`gitops/argocd/chart-repositories.yaml`](gitops/argocd/chart-repositories.yaml), the console through `insecureOciRegistries` (`30-okdp-control-plane-server`). Flux has no equivalent yet (its OCIRepositories would need `spec.insecure`). <!-- TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there. -->
 
 | Concern | Owner |
 |---|---|
@@ -86,6 +86,11 @@ cat > /tmp/okdp-sandbox-config.yaml <<EOF
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: okdp-sandbox
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
 nodes:
 - role: control-plane
   extraPortMappings:
@@ -101,6 +106,14 @@ nodes:
     protocol: UDP
 EOF
 kind create cluster --config /tmp/okdp-sandbox-config.yaml
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+# The control plane images come from repo.alliage.io:8082, over plain HTTP.
+docker exec okdp-sandbox-control-plane mkdir -p /etc/containerd/certs.d/repo.alliage.io:8082
+docker exec -i okdp-sandbox-control-plane tee /etc/containerd/certs.d/repo.alliage.io:8082/hosts.toml >/dev/null <<EOF
+server = "http://repo.alliage.io:8082"
+[host."http://repo.alliage.io:8082"]
+  capabilities = ["pull", "resolve"]
+EOF
 ```
 
 <details>
@@ -112,6 +125,11 @@ kind create cluster --config /tmp/okdp-sandbox-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: okdp-sandbox
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
 nodes:
 - role: control-plane
   extraPortMappings:
@@ -127,6 +145,14 @@ nodes:
     protocol: UDP
 "@ | Out-File -FilePath "$env:TEMP\okdp-sandbox-config.yaml" -Encoding UTF8
 kind create cluster --config "$env:TEMP\okdp-sandbox-config.yaml"
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+# The control plane images come from repo.alliage.io:8082, over plain HTTP.
+docker exec okdp-sandbox-control-plane mkdir -p /etc/containerd/certs.d/repo.alliage.io:8082
+@"
+server = "http://repo.alliage.io:8082"
+[host."http://repo.alliage.io:8082"]
+  capabilities = ["pull", "resolve"]
+"@ | docker exec -i okdp-sandbox-control-plane tee /etc/containerd/certs.d/repo.alliage.io:8082/hosts.toml
 ```
 
 </details>
