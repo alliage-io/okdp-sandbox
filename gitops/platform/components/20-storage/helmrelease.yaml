@@ -10,7 +10,8 @@ metadata:
     okdp.io/instance: "default-storage"
 spec:
   interval: 10m
-  url: "oci://quay.io/okdp/sandbox-charts/rustfs"
+  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+  url: "oci://repo.alliage.io:8082/okdp/sandbox-charts/rustfs"
   ref:
     tag: "1.0.0-1.0.0"
   layerSelector:

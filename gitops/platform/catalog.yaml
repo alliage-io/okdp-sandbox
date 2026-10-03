@@ -19,21 +19,23 @@
 # Console sidebar, one section per entry, in this order. A service sits in
 # the section it is listed under. Icons are PrimeIcons names.
 # Versions are chart versions (OCI tags of <defaultRepository>/<name>).
-defaultRepository: oci://quay.io/okdp/platform-charts
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+defaultRepository: oci://repo.alliage.io:8082/okdp/platform-charts
 categories:
   - title: Data Catalog
     icon: pi-warehouse
     services:
       - { name: hive-metastore, versions: ["4.0.1-1.0.0"], default: "4.0.1-1.0.0", description: Hive metastore }
-      - { name: polaris, versions: ["1.3.0-incubating-2.0.0"], default: "1.3.0-incubating-2.0.0", description: Apache Polaris Iceberg catalog }
+      - { name: polaris, versions: ["1.3.0-incubating-1.0.0"], default: "1.3.0-incubating-1.0.0", description: Apache Polaris Iceberg catalog }
   - title: Database
     icon: pi-database
     services:
-      - { name: cnpg-postgresql, repository: quay.io/okdp/sandbox-charts, versions: ["18.3.0-1.0.0"], default: "18.3.0-1.0.0", description: PostgreSQL cluster (CloudNativePG) }
+      # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+      - { name: cnpg-postgresql, repository: repo.alliage.io:8082/okdp/sandbox-charts, versions: ["18.3.0-1.0.0"], default: "18.3.0-1.0.0", description: PostgreSQL cluster (CloudNativePG) }
   - title: Query Engine
     icon: pi-bolt
     services:
-      - { name: trino, versions: ["480.0.0-1.0.1"], default: "480.0.0-1.0.1", description: Trino }
+      - { name: trino, versions: ["480.0.0-1.0.0"], default: "480.0.0-1.0.0", description: Trino }
   - title: BI & Dataviz
     icon: pi-chart-bar
     services:
@@ -41,12 +43,12 @@ categories:
   - title: Notebooks
     icon: pi-book
     services:
-      - { name: jupyterhub, versions: ["4.4.2-1.0.1"], default: "4.4.2-1.0.1", description: JupyterHub }
+      - { name: jupyterhub, versions: ["4.4.2-1.0.0"], default: "4.4.2-1.0.0", description: JupyterHub }
   - title: Workflows
     icon: pi-cog
     services:
-      - { name: airflow, versions: ["3.2.1-1.0.1"], default: "3.2.1-1.0.1", description: Apache Airflow }
+      - { name: airflow, versions: ["3.2.1-1.0.0"], default: "3.2.1-1.0.0", description: Apache Airflow }
   - title: Data Engineering
     icon: pi-microchip
     services:
-      - { name: spark-history-server, versions: ["3.5.1-1.0.1"], default: "3.5.1-1.0.1", description: Spark History Server }
+      - { name: spark-history-server, versions: ["3.5.1-1.0.0"], default: "3.5.1-1.0.0", description: Spark History Server }

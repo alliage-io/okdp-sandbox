@@ -1,6 +1,7 @@
 name: tools
 project: kube-tools
 service: tools
-chart: oci://quay.io/okdp/sandbox-charts/tools
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+chart: oci://repo.alliage.io:8082/okdp/sandbox-charts/tools
 version: 1.0.0-1.0.0
 connections: []

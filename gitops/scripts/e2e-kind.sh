@@ -41,7 +41,8 @@
 #   E2E_DIR       work directory (kubeconfigs, pushed copy), default ./.e2e
 #   E2E_REF       Git ref of this repository to deploy, default HEAD (commit first)
 #   E2E_CHART_MAP "FROM=TO" chart reference prefix rewrite, e.g.
-#                 oci://quay.io/okdp=oci://nokubocd-registry:5000/okdp
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
+#                 oci://repo.alliage.io:8082/okdp=oci://nokubocd-registry:5000/okdp
 #   E2E_PLAIN_HTTP_REGISTRY  e.g. nokubocd-registry:5000
 #   E2E_REGISTRY_CONTAINER   Docker container of that registry, connected to the kind network
 #   E2E_LOAD_IMAGES          images loaded into the kind node (space separated)
@@ -156,8 +157,25 @@ if kind get clusters | grep -qx "$CLUSTER"; then
   log "cluster exists"
   kind export kubeconfig --name "$CLUSTER" --kubeconfig "$KUBECONFIG"
 else
-  kind create cluster --name "$CLUSTER" --kubeconfig "$KUBECONFIG" --wait 120s
+  # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+  # (the containerd registry config_path, for the plain HTTP repo.alliage.io:8082 below)
+  kind create cluster --name "$CLUSTER" --kubeconfig "$KUBECONFIG" --wait 120s --config - <<'KIND'
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry]
+    config_path = "/etc/containerd/certs.d"
+KIND
 fi
+# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP images are published there.
+# The control plane images come from repo.alliage.io:8082, over plain HTTP.
+docker exec "$CLUSTER-control-plane" mkdir -p /etc/containerd/certs.d/repo.alliage.io:8082
+docker exec -i "$CLUSTER-control-plane" tee /etc/containerd/certs.d/repo.alliage.io:8082/hosts.toml >/dev/null <<'HOSTS'
+server = "http://repo.alliage.io:8082"
+[host."http://repo.alliage.io:8082"]
+  capabilities = ["pull", "resolve"]
+HOSTS
 [[ "$(kubectl config current-context)" == "kind-$CLUSTER" ]] || { log "unexpected context"; exit 1; }
 if [[ -n "$E2E_REGISTRY_CONTAINER" ]]; then
   docker network connect kind "$E2E_REGISTRY_CONTAINER" 2>/dev/null || true
