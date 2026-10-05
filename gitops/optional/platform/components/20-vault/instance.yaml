@@ -1,7 +1,6 @@
 name: vault
 project: vault
 service: vault
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
 chart: oci://quay.io/okdp/sandbox-dependencies/vault
 version: 0.34.1-1.0.0
 connections: []

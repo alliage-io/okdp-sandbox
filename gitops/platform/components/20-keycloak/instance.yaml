@@ -1,7 +1,6 @@
 name: keycloak
 project: keycloak
 service: keycloak
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
 chart: oci://quay.io/okdp/sandbox-dependencies/keycloak
 version: 7.3.2-1.0.0
 connections:

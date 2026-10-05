@@ -1,7 +1,6 @@
 name: local-secrets-provider
 project: okdp-system
 service: local-secrets-provider
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
 chart: oci://quay.io/okdp/sandbox-dependencies/local-secrets-provider
 version: 1.0.0-1.0.0
 connections: []

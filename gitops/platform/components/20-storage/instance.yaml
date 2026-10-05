@@ -1,7 +1,6 @@
 name: storage
 project: default
 service: rustfs
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
 chart: oci://quay.io/okdp/sandbox-dependencies/rustfs
 version: 1.0.0-1.0.0
 connections: []
