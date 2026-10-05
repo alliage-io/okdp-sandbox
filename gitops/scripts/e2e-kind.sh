@@ -111,6 +111,10 @@ prepare_copy() {
       FROM="$from" TO="$to" yq -i '.chart |= sub("^" + strenv(FROM); strenv(TO))' "$f"
     done < <(find "$g" -name instance.yaml -not -path "$g/optional/*")
     FROM="$from" TO="$to" yq -i '.defaultRepository |= sub("^" + strenv(FROM); strenv(TO))' "$g/platform/catalog.yaml"
+    # A service of the catalog may name its own repository (with or without oci://).
+    FROM="${from#oci://}" TO="${to#oci://}" yq -i \
+      '(.categories[].services[] | select(has("repository")) | .repository) |= sub("^(oci://)?" + strenv(FROM); strenv(TO))' \
+      "$g/platform/catalog.yaml"
     # The chart registries the project AppProjects allow (Argo CD patterns, no oci://).
     FROM="${from#oci://}" TO="${to#oci://}" yq -i '.chartRepositories |= sub("^" + strenv(FROM); strenv(TO))' "$g/argocd/okdp-project/values.yaml"
   fi
