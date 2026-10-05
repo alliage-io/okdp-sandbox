@@ -45,19 +45,21 @@ Optional ([`gitops/optional`](gitops/optional)): Vault (a secret backend), and t
 basic user ─► console UI ─► control-plane server ─(git commit)─┐
 GitOps user ────────────────────────────(git commit / PR)────► deployments Git repo (Forgejo)
                                                                │
+      sources (instance.yaml, values.yaml, connections) ─ compiled ─► compiled/ (one values file per instance)
                               Flux: HelmRelease + OCIRepository │ Argo CD: ApplicationSet → Application
                                                                ▼
-                                   Helm renders the SAME chart with the SAME values layers
+                               Helm installs the SAME chart with the SAME compiled values
 ```
 
-- Every component and service is an OKDP Helm chart (or an upstream chart) with its values in Git: [`gitops/`](gitops) is the deployments repository. Its [README](gitops/README.md) specifies every file.
-- Git is the only desired state. The console commits to the in-cluster Forgejo; so can you. Flux or Argo CD deploys what is in Git.
-- The charts come from `oci://repo.alliage.io:8082/okdp/platform-charts` ([platform-packages](https://github.com/OKDP/platform-packages)) and `oci://repo.alliage.io:8082/okdp/sandbox-charts` ([sandbox-dependencies](https://github.com/OKDP/sandbox-dependencies)), over plain HTTP: Argo CD reaches them through the repository Secrets of [`gitops/argocd/chart-repositories.yaml`](gitops/argocd/chart-repositories.yaml), the console through `insecureOciRegistries` (`30-okdp-control-plane-server`). Flux has no equivalent yet (its OCIRepositories would need `spec.insecure`). <!-- TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there. -->
+- Every component and service is an OKDP chart (or an upstream chart) with its values in Git: [`gitops/`](gitops) is the deployments repository. Its [README](gitops/README.md) specifies every file.
+- Git is the only desired state. The console commits to the in-cluster Forgejo; so can you. Each instance is compiled ([okdp-compiler](https://github.com/OKDP/okdp-compiler)) into the one values file its chart is installed with, `gitops/compiled/`: by the console in the commit it writes, by `okdp-gitops compile` for what you write. Flux or Argo CD deploys `gitops/compiled/`.
+- The OKDP charts come from `oci://quay.io/okdp/platform-charts` ([platform-charts](https://github.com/OKDP/platform-charts)) and `oci://quay.io/okdp/sandbox-dependencies` ([sandbox-dependencies](https://github.com/OKDP/sandbox-dependencies)), one chart per service: an umbrella over its upstream charts, with its service definition. <!-- TODO(okdp-compiler): the charts of the okdp-compiler format are not published yet: until they are, serve them from a local registry (gitops/scripts/e2e-kind.sh, E2E_CHARTS) or the CI packages of their repositories (ghcr.io, gitops/scripts/pull-charts.sh). -->
 
 | Concern | Owner |
 |---|---|
-| Charts of the OKDP services and control plane | [`OKDP/platform-packages`](https://github.com/OKDP/platform-packages) |
-| Library chart `okdp-lib` and the contract schemas | [`OKDP/okdp-lib`](https://github.com/OKDP/okdp-lib) |
+| Charts of the OKDP services and control plane | [`OKDP/platform-charts`](https://github.com/OKDP/platform-charts) |
+| Compiler of the instances (service definitions in YAML + CEL) | [`OKDP/okdp-compiler`](https://github.com/OKDP/okdp-compiler) |
+| Contract schemas of the connections | [`OKDP/okdp-lib-chart`](https://github.com/OKDP/okdp-lib-chart) |
 | Charts of the third-party and bootstrap dependencies | [`OKDP/sandbox-dependencies`](https://github.com/OKDP/sandbox-dependencies) |
 | Notebooks, DAGs, and runnable examples | [`OKDP/okdp-examples`](https://github.com/OKDP/okdp-examples) |
 | Control Plane web UI | [`OKDP/okdp-control-plane-ui`](https://github.com/OKDP/okdp-control-plane-ui) |
@@ -69,6 +71,7 @@ GitOps user ──────────────────────�
 - 16 GB RAM and 4 CPUs at least for the platform; the whole demo project needs about 32 GB.
 - [Docker](https://docs.docker.com/get-docker/) or a compatible container runtime, [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation), [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/), [Helm](https://helm.sh/docs/intro/install/) and `git`.
 - For Flux: the [Flux CLI](https://fluxcd.io/flux/installation/) (tested with v2.9.5). For Argo CD: nothing more (tested with v3.4.2).
+- To change the layout by hand: `okdp-gitops`, built from [okdp-control-plane-server](https://github.com/OKDP/okdp-control-plane-server) (`make build-gitops`), and [yq](https://github.com/mikefarah/yq) v4.
 
 ## Quick start
 
@@ -179,11 +182,12 @@ once with the same release name and values, the engine takes it over afterwards:
 ```sh
 helm upgrade --install forgejo-forgejo oci://code.forgejo.org/forgejo-helm/forgejo --version 17.1.7 \
   -n forgejo --create-namespace --wait \
-  -f gitops/platform/platform-values.yaml -f gitops/platform/components/20-forgejo/values.yaml
+  -f gitops/compiled/platform/components/20-forgejo/values.yaml
 ```
 
 Choose the GitOps engine and the object store before pushing (Flux and SeaweedFS by
-default); the script only edits the layout, run it without arguments to be asked:
+default); the script only edits and compiles the layout, run it without arguments to be
+asked:
 
 ```sh
 gitops/scripts/configure.sh --engine argocd --storage rustfs   # or: gitops/scripts/configure.sh -i
@@ -309,21 +313,21 @@ to Keycloak.
    `demo`. Its services appear in the console like the ones you deploy from it.
 3. **Deploy a service** from the console, or commit the same files: see
    [gitops/README.md](gitops/README.md) (`instance.yaml`, `values.yaml`, then
-   `gitops/scripts/render-flux.sh` for the Flux files). The console's commits show up in
+   `okdp-gitops compile --root gitops` for the compiled files). The console's commits show up in
    Forgejo (https://forgejo.okdp.sandbox). The
    [okdp CLI](https://github.com/OKDP/okdp-control-plane-cli) does the same from a
    terminal: `okdp login https://okdp-ui.okdp.sandbox` (device flow or browser, the
    console client allows both; add `--insecure-skip-tls-verify` if the sandbox
    certificate is not installed), then `okdp service deploy`.
 4. **Examples**: move `gitops/optional/projects/demo/services/okdp-examples` to
-   `gitops/projects/demo/services/`, run `gitops/scripts/render-flux.sh`, commit and push:
+   `gitops/projects/demo/services/`, run `okdp-gitops compile --root gitops`, commit and push:
    the seed Job loads the NYC-taxi lakehouse. Then follow the
    [okdp-examples guide](https://github.com/OKDP/okdp-examples).
 
 ## Optional components
 
 Move a directory of [`gitops/optional/platform/components`](gitops/optional/platform/components)
-to `gitops/platform/components/`, run `gitops/scripts/render-flux.sh`, commit and push.
+to `gitops/platform/components/`, run `okdp-gitops compile --root gitops`, commit and push.
 Remove it the same way (deletion-protected objects, labelled `okdp.io/protected`, must be
 unlabelled first).
 

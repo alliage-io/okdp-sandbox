@@ -15,13 +15,12 @@
 #
 
 # One Application <project>-<instance> per projects/<p>/services/<i>/instance.yaml.
-# Values layers, in order: platform/platform-values.yaml, each connection file listed
-# in instance.yaml "connections", then values.yaml. The layer paths are relative to
-# the matched instance.yaml, so the layout prefix only appears in the generator path.
-# <p> is the projects/<p> directory name, not instance.yaml "project" (render-flux.sh
+# One values file: what the instance is compiled to (the console, or okdp-gitops
+# compile), compiled/projects/<p>/services/<i>/values.yaml, its path relative to the
+# matched instance.yaml, so the layout prefix only appears in the generator path.
+# <p> is the projects/<p> directory name, not instance.yaml "project" (okdp-gitops
 # requires both to be equal): the Application belongs to AppProject project-<p>
 # (projects.yaml), which only allows namespace <p>.
-# The sources live in templatePatch because valueFiles ranges over "connections".
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -89,12 +88,10 @@ spec:
           targetRevision: '{{ .version }}'
           helm:
             releaseName: '{{ .path.path | dir | dir | base }}-{{ .name }}'
+            # The values the instance is compiled to (the console, or okdp-gitops
+            # compile): compiled/projects/<p>/services/<i>/values.yaml.
             valueFiles:
-              - '$values/{{ .path.path | dir | dir | dir | dir }}/platform/platform-values.yaml'
-            {{- range .connections }}
-              - '$values/{{ $.path.path | dir | dir }}/connections/{{ . }}.yaml'
-            {{- end }}
-              - '$values/{{ .path.path }}/values.yaml'
+              - '$values/{{ .path.path | dir | dir | dir | dir }}/compiled/projects/{{ .path.path | dir | dir | base }}/services/{{ .path.basename }}/values.yaml'
         - repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
           targetRevision: main
           ref: values

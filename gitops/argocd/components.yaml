@@ -19,8 +19,8 @@
 # step per layer (00, 10, 20, 30); a step starts when the previous one is Healthy.
 # Requires progressive syncs to be enabled on the ApplicationSet controller
 # (argocd-cmd-params-cm: applicationsetcontroller.enable.progressive.syncs: "true").
-# Values layers: platform/platform-values.yaml, each platform/connections/<c>.yaml
-# listed in instance.yaml "connections" (in order), then values.yaml.
+# One values file: what the component is compiled to (okdp-gitops compile),
+# compiled/platform/components/<NN>-<i>/values.yaml.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -103,12 +103,10 @@ spec:
           targetRevision: '{{ .version }}'
           helm:
             releaseName: '{{ .project }}-{{ .name }}'
+            # The values the component is compiled to (okdp-gitops compile):
+            # compiled/platform/components/<NN>-<name>/values.yaml.
             valueFiles:
-              - '$values/{{ .path.path | dir | dir }}/platform-values.yaml'
-            {{- range .connections }}
-              - '$values/{{ $.path.path | dir | dir }}/connections/{{ . }}.yaml'
-            {{- end }}
-              - '$values/{{ .path.path }}/values.yaml'
+              - '$values/{{ .path.path | dir | dir | dir }}/compiled/platform/components/{{ .path.basename }}/values.yaml'
         - repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
           targetRevision: main
           ref: values

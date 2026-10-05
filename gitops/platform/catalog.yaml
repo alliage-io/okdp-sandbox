@@ -19,8 +19,7 @@
 # Console sidebar, one section per entry, in this order. A service sits in
 # the section it is listed under. Icons are PrimeIcons names.
 # Versions are chart versions (OCI tags of <defaultRepository>/<name>).
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-defaultRepository: oci://repo.alliage.io:8082/okdp/platform-charts
+defaultRepository: oci://quay.io/okdp/platform-charts
 categories:
   - title: Data Catalog
     icon: pi-warehouse
@@ -30,8 +29,7 @@ categories:
   - title: Database
     icon: pi-database
     services:
-      # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-      - { name: cnpg-postgresql, repository: repo.alliage.io:8082/okdp/sandbox-charts, versions: ["18.3.0-1.0.0"], default: "18.3.0-1.0.0", description: PostgreSQL cluster (CloudNativePG) }
+      - { name: cnpg-postgresql, repository: quay.io/okdp/sandbox-dependencies, versions: ["18.3.0-1.0.0"], default: "18.3.0-1.0.0", description: PostgreSQL cluster (CloudNativePG) }
   - title: Query Engine
     icon: pi-bolt
     services:

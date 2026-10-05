@@ -18,7 +18,7 @@
 #   kubectl apply -f gitops/flux/sync.yaml
 # then Flux manages this directory (Kustomization "okdp", path ./gitops/flux).
 # Change the URL/branch here for another deployments repository; a repository with
-# the layout at its root uses "./flux" (and render-flux.sh --path-prefix "").
+# the layout at its root uses "./flux" (and okdp-gitops compile --path-prefix "").
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:

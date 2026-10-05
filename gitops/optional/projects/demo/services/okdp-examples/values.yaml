@@ -1,7 +1,7 @@
 # Optional layer 3 of the sandbox: the okdp-examples NYC-taxi medallion lakehouse seed
 # (one idempotent Job: bronze data into S3, external tables on the bronze catalog, Polaris
 # catalogs, roles and principals through polaris-admin). Move this directory to
-# projects/demo/services/ (then run scripts/render-flux.sh), or deploy okdp-examples from
+# projects/demo/services/ (then run okdp-gitops compile), or deploy okdp-examples from
 # the console. It also creates the Polaris catalog "demo" behind the Trino catalog
 # "iceberg" (formerly clusters/sandbox/project-demo/60-polaris-catalog-job.yaml).
 storage: demo-storage

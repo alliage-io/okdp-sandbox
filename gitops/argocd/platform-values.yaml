@@ -14,8 +14,8 @@
 #  limitations under the License.
 #
 
-# ConfigMap okdp-releases/okdp-platform-values, built from the engine-neutral
-# platform/kustomization.yaml (the same objects as Flux's okdp-platform-values).
+# ConfigMap okdp-releases/okdp-platform-values, built from the engine-neutral, generated
+# compiled/platform/kustomization.yaml (the same objects as Flux's okdp-platform-values).
 # The control plane server reads it under both engines.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -27,7 +27,7 @@ spec:
   source:
     repoURL: http://forgejo-http.forgejo.svc.cluster.local:3000/okdp/okdp-sandbox.git
     targetRevision: main
-    path: gitops/platform
+    path: gitops/compiled/platform
   destination:
     server: https://kubernetes.default.svc
     namespace: okdp-releases

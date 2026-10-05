@@ -2,6 +2,6 @@ name: okdp-control-plane-server
 project: okdp-system
 service: okdp-control-plane-server
 # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chart: oci://repo.alliage.io:8082/okdp/platform-charts/okdp-control-plane-server
+chart: oci://quay.io/okdp/platform-charts/okdp-control-plane-server
 version: 0.9.0-1.0.0
 connections: []

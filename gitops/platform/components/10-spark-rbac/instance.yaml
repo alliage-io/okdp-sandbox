@@ -2,6 +2,6 @@ name: spark-rbac
 project: default
 service: spark-rbac
 # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chart: oci://repo.alliage.io:8082/okdp/platform-charts/spark-rbac
+chart: oci://quay.io/okdp/platform-charts/spark-rbac
 version: 1.0.1-1.0.0
 connections: []

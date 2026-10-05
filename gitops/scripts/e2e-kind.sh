@@ -26,7 +26,10 @@
 #   - the control plane server's gitops.engine is set to the engine under test;
 #   - E2E_CHART_MAP rewrites chart references (unpublished charts in a local
 #     registry) in every instance.yaml, in the catalog and in the chart registries
-#     the project AppProjects allow, then render-flux.sh runs;
+#     the project AppProjects allow;
+#   - E2E_SERVER_IMAGE and E2E_UI_IMAGE (repository:tag) replace the images of the
+#     control plane (load them with E2E_LOAD_IMAGES);
+#   - then the copy is compiled (okdp-gitops compile, the charts of E2E_CHARTS first);
 #   - E2E_PLAIN_HTTP_REGISTRY (host:port) is reached over plain HTTP: Flux
 #     OCIRepositories get spec.insecure (Kustomization patches), Argo CD gets one
 #     repository Secret per chart repository (insecureOCIForceHttp), the server
@@ -45,6 +48,13 @@
 #                 oci://repo.alliage.io:8082/okdp=oci://nokubocd-registry:5000/okdp
 #   E2E_PLAIN_HTTP_REGISTRY  e.g. nokubocd-registry:5000
 #   E2E_REGISTRY_CONTAINER   Docker container of that registry, connected to the kind network
+#   E2E_CHARTS    directory of packaged charts (<chart>-<version>.tgz: package-charts.sh of
+#                 the chart repositories, or pull-charts.sh): the compile reads them first
+#   E2E_REGISTRY_HOST  E2E_PLAIN_HTTP_REGISTRY as the host reaches it (e.g. 127.0.0.1:5001):
+#                 the chart of every instance mapped to E2E_PLAIN_HTTP_REGISTRY is pushed
+#                 there from E2E_CHARTS (plain HTTP), at its path, before the deployment
+#   E2E_SERVER_IMAGE, E2E_UI_IMAGE   images of the control plane (repository:tag)
+#   OKDP_GITOPS   the okdp-gitops binary (default: okdp-gitops in PATH)
 #   E2E_LOAD_IMAGES          images loaded into the kind node (space separated)
 #   E2E_SKIP_PROJECTS        1: platform components only
 #   FLUX_VERSION  default v2.9.5          ARGOCD_VERSION  default v3.4.2
@@ -54,7 +64,7 @@
 set -euo pipefail
 
 ACTION="${1:-}"; ENGINE="${2:-}"
-[[ "$ACTION" =~ ^(up|push|down)$ && "$ENGINE" =~ ^(flux|argocd)$ ]] || { sed -n '18,54p' "$0"; exit 2; }
+[[ "$ACTION" =~ ^(up|push|down)$ && "$ENGINE" =~ ^(flux|argocd)$ ]] || { sed -n '18,62p' "$0"; exit 2; }
 
 SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPTS/.." && pwd)"
@@ -66,6 +76,11 @@ E2E_PLAIN_HTTP_REGISTRY="${E2E_PLAIN_HTTP_REGISTRY:-}"
 E2E_REGISTRY_CONTAINER="${E2E_REGISTRY_CONTAINER:-}"
 E2E_LOAD_IMAGES="${E2E_LOAD_IMAGES:-}"
 E2E_SKIP_PROJECTS="${E2E_SKIP_PROJECTS:-}"
+E2E_CHARTS="${E2E_CHARTS:-}"
+E2E_REGISTRY_HOST="${E2E_REGISTRY_HOST:-}"
+E2E_SERVER_IMAGE="${E2E_SERVER_IMAGE:-}"
+E2E_UI_IMAGE="${E2E_UI_IMAGE:-}"
+OKDP_GITOPS="${OKDP_GITOPS:-okdp-gitops}"
 FLUX_VERSION="${FLUX_VERSION:-v2.9.5}"
 ARGOCD_VERSION="${ARGOCD_VERSION:-v3.4.2}"
 E2E_TIMEOUT="${E2E_TIMEOUT:-2400}"
@@ -102,7 +117,16 @@ prepare_copy() {
   if [[ -n "$E2E_PLAIN_HTTP_REGISTRY" ]]; then
     REG="$E2E_PLAIN_HTTP_REGISTRY" yq -i '.insecureOciRegistries = strenv(REG)' "$g/platform/components/30-okdp-control-plane-server/values.yaml"
   fi
-  "$g/scripts/render-flux.sh" --root "$g" --path-prefix "$PREFIX" >/dev/null
+  local c image
+  for c in server ui; do
+    image="E2E_${c^^}_IMAGE"; image="${!image}"
+    [[ -n "$image" ]] || continue
+    REPO="${image%:*}" TAG="${image##*:}" yq -i '.imageRepository = strenv(REPO) | .imageTag = strenv(TAG)' \
+      "$g/platform/components/30-okdp-control-plane-$c/values.yaml"
+  done
+  local charts=()
+  [[ -z "$E2E_CHARTS" ]] || charts=(--charts "$E2E_CHARTS")
+  "$OKDP_GITOPS" compile --root "$g" --path-prefix "$PREFIX" "${charts[@]}" >/dev/null
   if [[ -n "$E2E_PLAIN_HTTP_REGISTRY" ]]; then
     # Flux: every OCIRepository of the components and projects is plain HTTP.
     # shellcheck disable=SC2016
@@ -184,16 +208,31 @@ for image in $E2E_LOAD_IMAGES; do
   kind load docker-image "$image" --name "$CLUSTER"
 done
 
+
 prepare_copy
+
+# The charts the copy takes from the local registry, from E2E_CHARTS.
+if [[ -n "$E2E_REGISTRY_HOST" && -n "$E2E_PLAIN_HTTP_REGISTRY" && -n "$E2E_CHARTS" ]]; then
+  log "pushing the charts of $E2E_CHARTS to $E2E_REGISTRY_HOST"
+  while IFS=$'\t' read -r chart version; do
+    path="${chart#"oci://$E2E_PLAIN_HTTP_REGISTRY"/}"
+    [[ "$path" != "$chart" ]] || continue
+    tgz="$E2E_CHARTS/${chart##*/}-$version.tgz"
+    [[ -f "$tgz" ]] || { log "$tgz is missing"; exit 1; }
+    helm push "$tgz" "oci://$E2E_REGISTRY_HOST/${path%/*}" --plain-http >/dev/null 2>"$E2E_DIR/push.log" \
+      || { log "helm push $tgz failed"; cat "$E2E_DIR/push.log"; exit 1; }
+  done < <(find "$COPY/$PREFIX/platform/components" "$COPY/$PREFIX/projects" -name instance.yaml \
+    | xargs -r yq -r '.chart + "\t" + .version' | sort -u)
+fi
 
 # -------------------------------------------------------------------- forgejo
 # Bootstrap: the same release the engine manages afterwards (forgejo-forgejo in forgejo),
-# with the component's values layers.
-g="$ROOT/platform/components/20-forgejo"
+# with the component's compiled values.
+g="$COPY/$PREFIX/platform/components/20-forgejo"
 log "installing Forgejo (bootstrap of the 20-forgejo component)"
 helm upgrade --install "$(yq '.project + "-" + .name' "$g/instance.yaml")" "$(yq '.chart' "$g/instance.yaml")" \
   --version "$(yq '.version' "$g/instance.yaml")" -n "$(yq '.project' "$g/instance.yaml")" --create-namespace \
-  -f "$ROOT/platform/platform-values.yaml" -f "$g/values.yaml" --wait --timeout 10m
+  -f "$COPY/$PREFIX/compiled/platform/components/20-forgejo/values.yaml" --wait --timeout 10m
 push_copy
 
 # ------------------------------------------------------------------- engine

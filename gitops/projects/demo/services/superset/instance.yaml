@@ -2,7 +2,7 @@ name: superset
 project: demo
 service: superset
 # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chart: oci://repo.alliage.io:8082/okdp/platform-charts/superset
+chart: oci://quay.io/okdp/platform-charts/superset
 version: 6.0.0-1.0.0
 connections:
   - demo-db-superset

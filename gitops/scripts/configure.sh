@@ -23,8 +23,8 @@
 #                               platform/components/20-storage, the others are parked
 #                               in optional/storage/<store> (instance.yaml, values.yaml):
 #                               the two are swapped, the internalUrl of the connection
-#                               files pointing at the store is rewritten, then
-#                               render-flux.sh runs.
+#                               files pointing at the store is rewritten.
+# Then the layout is compiled again (okdp-gitops compile).
 # Without --engine and --storage on a terminal, or with -i, asks for both (the current
 # values are the defaults). Choose before the first install: switching the store of a
 # running sandbox starts from an empty store, switching engines means reinstalling.
@@ -32,7 +32,8 @@
 # Usage: configure.sh [-i|--interactive] [--engine flux|argocd]
 #                     [--storage seaweedfs|rustfs] [--root DIR]
 #        configure.sh --show
-# Requires bash >= 4, yq v4.
+# Requires bash >= 4, yq v4 and okdp-gitops (okdp-control-plane-server: make build-gitops;
+# OKDP_GITOPS names it, OKDP_GITOPS_ARGS adds arguments, e.g. "--charts DIR").
 
 set -euo pipefail
 export LC_ALL=C
@@ -178,7 +179,9 @@ if [[ "$STORAGE" != "$CUR_STORAGE" ]]; then
 fi
 
 if $changed; then
-  "$SCRIPTS/render-flux.sh" --root "$ROOT"
+  # Word splitting of OKDP_GITOPS_ARGS is intended.
+  # shellcheck disable=SC2086
+  "${OKDP_GITOPS:-okdp-gitops}" compile --root "$ROOT" ${OKDP_GITOPS_ARGS:-}
   cat <<EOF
 
 Next: review, commit and push to Forgejo (README, step 3), then install with

@@ -20,5 +20,4 @@ name: ""
 repoURL: ""
 # Argo CD source pattern of the chart registries the services may come from (the
 # instance.yaml chart references without oci://).
-# TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chartRepositories: repo.alliage.io:8082/okdp/*
+chartRepositories: quay.io/okdp/*

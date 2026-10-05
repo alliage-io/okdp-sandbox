@@ -2,6 +2,6 @@ name: ingress-nginx
 project: ingress-nginx
 service: ingress-nginx
 # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chart: oci://repo.alliage.io:8082/okdp/sandbox-charts/ingress-nginx
+chart: oci://quay.io/okdp/sandbox-dependencies/ingress-nginx
 version: 4.15.1-1.0.0
 connections: []

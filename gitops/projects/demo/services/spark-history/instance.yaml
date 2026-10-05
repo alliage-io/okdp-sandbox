@@ -2,7 +2,7 @@ name: spark-history
 project: demo
 service: spark-history-server
 # TODO(no-kubocd): temporary registry, revert to quay.io/okdp once the OKDP charts are published there.
-chart: oci://repo.alliage.io:8082/okdp/platform-charts/spark-history-server
+chart: oci://quay.io/okdp/platform-charts/spark-history-server
 version: 3.5.1-1.0.0
 connections:
   - demo-storage
