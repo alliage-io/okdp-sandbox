@@ -25,9 +25,13 @@
 #      identical under both engines.
 #
 # The platform components only (E2E_SKIP_PROJECTS=1): two clusters with the demo
-# project do not fit a hosted runner (about 32 GB each). The charts are the
-# published ones (oci://quay.io/okdp/...): this workflow validates the deployment
-# layer, not the charts, which their own repositories test.
+# project do not fit a hosted runner (about 32 GB each). This workflow validates the
+# deployment layer, not the charts, which their own repositories test. The OKDP
+# charts not published on quay.io yet are the packages the CI of their repositories
+# pushes to ghcr.io, served by a local plain-HTTP registry (nokubocd-registry:5000)
+# and compiled into the layout by e2e-kind.sh (okdp-gitops). The control plane
+# server is built from okdp-control-plane-server (it compiles what it writes) and
+# loaded into kind.
 
 name: Deploy validation (sandbox e2e, Flux and Argo CD)
 
@@ -60,6 +64,17 @@ env:
   # sha256 of kind-linux-amd64 ${KIND_VERSION}, from the release's
   # kind-linux-amd64.sha256sum. Update both together.
   KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+  # TODO(okdp-compiler): main, then a release, once the okdp-compiler branches land.
+  OKDP_CONTROL_PLANE_SERVER_REF: okdp-compiler
+  CHART_MIRRORS: >-
+    --map oci://quay.io/okdp/platform-charts=oci://ghcr.io/okdp/platform-charts
+    --map oci://quay.io/okdp/sandbox-dependencies=oci://ghcr.io/okdp/sandbox-dependencies
+  E2E_CHART_MAP: oci://quay.io/okdp=oci://nokubocd-registry:5000/okdp
+  E2E_PLAIN_HTTP_REGISTRY: nokubocd-registry:5000
+  E2E_REGISTRY_CONTAINER: nokubocd-registry
+  E2E_REGISTRY_HOST: 127.0.0.1:5001
+  E2E_SERVER_IMAGE: okdp-control-plane-server:e2e
+  E2E_LOAD_IMAGES: okdp-control-plane-server:e2e
 
 jobs:
   deploy-validation:
@@ -90,6 +105,37 @@ jobs:
           echo "${KIND_SHA256}  ${RUNNER_TEMP}/kind" | sha256sum -c -
           sudo install -m 0755 "${RUNNER_TEMP}/kind" /usr/local/bin/kind
           kind version; helm version; flux version --client
+
+      - name: Clone okdp-control-plane-server, okdp-compiler and okdp-lib-chart 📥
+        run: |
+          set -euo pipefail
+          /usr/bin/git clone --depth 1 --branch "${OKDP_CONTROL_PLANE_SERVER_REF}" https://github.com/OKDP/okdp-control-plane-server.git ../okdp-control-plane-server
+          /usr/bin/git clone --depth 1 https://github.com/OKDP/okdp-compiler.git ../okdp-compiler
+          /usr/bin/git clone --depth 1 https://github.com/OKDP/okdp-lib-chart.git ../okdp-lib-chart
+
+      - name: Set up Go 🛠️
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: ../okdp-control-plane-server/go.mod
+          cache: false
+
+      - name: Build okdp-gitops and the control plane server image 🛠️
+        run: |
+          set -euo pipefail
+          (cd ../okdp-control-plane-server && go build -o "${RUNNER_TEMP}/bin/okdp-gitops" ./cmd/okdp-gitops)
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+          docker build -t "${E2E_SERVER_IMAGE}" \
+            --build-context okdp-lib=../okdp-lib-chart --build-context okdp-compiler=../okdp-compiler \
+            ../okdp-control-plane-server
+
+      - name: Serve the unpublished OKDP charts from a local registry 📦
+        run: |
+          set -euo pipefail
+          # Word splitting of CHART_MIRRORS is intended.
+          # shellcheck disable=SC2086
+          gitops/scripts/pull-charts.sh --mapped-only ${CHART_MIRRORS} "${RUNNER_TEMP}/charts"
+          echo "E2E_CHARTS=${RUNNER_TEMP}/charts" >> "${GITHUB_ENV}"
+          docker run -d --name "${E2E_REGISTRY_CONTAINER}" -p "${E2E_REGISTRY_HOST}:5000" registry:2
 
       - name: Deploy with Flux 🚀
         run: gitops/scripts/e2e-kind.sh up flux
